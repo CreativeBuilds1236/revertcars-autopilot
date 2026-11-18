@@ -1,0 +1,148 @@
+# ───────────────────────────────────────────────────────────────
+#  Revert Media autopilot — settings
+#  Edit this file on GitHub (pencil icon) to change how the page runs.
+# ───────────────────────────────────────────────────────────────
+
+page:
+  name: "Revert Media"
+  handle: "revertcars.media"
+  timezone: "Asia/Dubai"
+  # Always added to every post (keep it short — Instagram now favours 3-8 hashtags in total)
+  fixed_hashtags: ["#RevertMedia", "#UAECars"]
+  max_ai_hashtags: 6
+
+schedule:
+  # Approved posts go out at the next free slot (UAE time).
+  post_slots: ["13:00", "19:00", "22:00"]
+  # Drafts that you don't answer within this many hours expire.
+  draft_expiry_hours: 48
+
+drafting:
+  news_per_run: 2          # news drafts each time the drafter runs (it runs twice a day)
+  uae_wild_per_run: 1      # extra "Only in the UAE" draft per run, when there's a good one
+  throwback_per_day: 1     # throwback drafts per day
+  carousel_probability: 0.55   # chance a story with 2+ good photos becomes a carousel
+  max_carousel_slides: 5       # including the cover
+  outro_slide: true            # "follow @revertcars.media" card at the end of carousels
+  max_story_age_hours: 36
+  min_source_chars: 500        # stories with less source text than this are skipped (too thin to fact-check)
+
+ai:
+  writer_model: "claude-sonnet-5-5"
+  checker_model: "claude-haiku-5-5"
+  british_spelling: true
+
+instagram:
+  api_version: "v26.0"
+  # Where Instagram downloads the images from. Leave blank to use this GitHub repo's "data" branch.
+  media_base_url: ""
+
+# ───────────────────────── SOURCES ─────────────────────────
+# Direct feeds. Any feed that stops working is reported in the
+# "Setup check" run and simply skipped — it never breaks the system.
+feeds:
+  # Global
+  - { name: "Motor1",        url: "https://www.motor1.com/rss/news/all/",       weight: 1.0 }
+  - { name: "Carscoops",     url: "https://www.carscoops.com/feed/",            weight: 1.0 }
+  - { name: "Car and Driver", url: "https://www.caranddriver.com/rss/all.xml/", weight: 1.0 }
+  - { name: "Road & Track",  url: "https://www.roadandtrack.com/rss/all.xml/",  weight: 1.0 }
+  - { name: "Autocar",       url: "https://www.autocar.co.uk/rss",              weight: 1.0 }
+  - { name: "Top Gear",      url: "https://www.topgear.com/car-news/rss",       weight: 1.0 }
+  - { name: "The Drive",     url: "https://www.thedrive.com/feed",              weight: 0.9 }
+  - { name: "Autoblog",      url: "https://www.autoblog.com/rss.xml",           weight: 0.9 }
+  - { name: "InsideEVs",     url: "https://insideevs.com/rss/news/all/",        weight: 0.8 }
+  # Car culture — the "cool car stuff" lane (builds, barn finds, auctions, weird history)
+  - { name: "Speedhunters",  url: "https://www.speedhunters.com/feed/",         weight: 0.9, culture: true }
+  - { name: "Hagerty",       url: "https://www.hagerty.com/media/feed/",        weight: 0.8, culture: true }
+  - { name: "Jalopnik",      url: "https://jalopnik.com/rss",                   weight: 0.8, culture: true }
+  - { name: "Hemmings",      url: "https://www.hemmings.com/stories/feed",      weight: 0.7, culture: true }
+  # UAE
+  - { name: "DriveArabia",   url: "https://www.drivearabia.com/feed/",          weight: 1.2, uae: true }
+
+# Google News searches (UAE edition). {brand} rotates through the brand list below.
+google_news:
+  edition: { hl: "en-AE", gl: "AE", ceid: "AE:en" }
+  queries:
+    - '"UAE" car launch when:2d'
+    - 'Dubai OR "Abu Dhabi" new car unveiled when:2d'
+    - 'site:yallamotor.com news when:2d'
+    - 'RTA Dubai road rule OR speed limit OR Salik when:3d'
+    - '"UAE fuel prices" when:5d'
+    - 'SEMA OR Goodwood OR "Dubai Motor Show" OR "Tokyo Auto Salon" OR "Geneva Motor Show" when:3d'
+    - 'new car reveal OR unveiled OR debut when:1d'
+  # "Only in the UAE" lane — the crazy local stuff. One of these gets a reserved spot every run.
+  uae_wild_queries:
+    - 'Dubai OR "Abu Dhabi" number plate auction record when:7d'
+    - '"Dubai Police" supercar OR patrol car OR fleet when:7d'
+    - 'Dubai OR UAE hypercar OR "one-off" OR "most expensive" car when:5d'
+    - 'Liwa OR "Moreeb Dune" OR "hill climb" OR "Liwa festival" when:7d'
+    - 'UAE OR Dubai drag race OR drift OR "Yas Marina" OR "Dubai Autodrome" when:5d'
+    - 'Dubai OR "Abu Dhabi" robotaxi OR "flying taxi" OR driverless when:5d'
+    - 'site:topgearme.com when:3d'
+  brand_queries_per_run: 5
+  brand_query: '{brand} new model OR revealed OR unveiled when:2d'
+  # Only stories from these publishers are accepted from Google News.
+  trusted_publishers:
+    - motor1.com
+    - carscoops.com
+    - caranddriver.com
+    - roadandtrack.com
+    - topgear.com
+    - autocar.co.uk
+    - autoblog.com
+    - evo.co.uk
+    - thedrive.com
+    - motortrend.com
+    - insideevs.com
+    - electrek.co
+    - drivearabia.com
+    - yallamotor.com
+    - thenationalnews.com
+    - wam.ae
+    - rta.ae
+    - reuters.com
+    - bloomberg.com
+    - apnews.com
+    - cnbc.com
+    - autonews.com
+    - speedhunters.com
+    - topgearme.com          # Top Gear Middle East
+    - arabianbusiness.com
+    - dubaipolice.gov.ae
+    - adpolice.gov.ae
+    - emiratesauction.com
+    - motorsport.com
+    - hagerty.com
+    - jalopnik.com
+    # - khaleejtimes.com     # remove the "#" to allow Khaleej Times (covers a lot of local car stories)
+  blocked_publishers:
+    - gulfnews.com
+    - wheels.ae
+
+trends:
+  google_trends_geo: "AE"
+  # Reddit is no longer read automatically: Reddit switched off its feeds (13 Nov 2026) and is closing
+  # its public API. Instead, share any Reddit post / photo / link to the Telegram bot and it drafts it.
+
+# Words that make a story more interesting for the UAE audience (each match adds a bit of score).
+boost_keywords:
+  uae: ["uae", "dubai", "abu dhabi", "sharjah", "gcc", "middle east", "saudi", "rta", "salik", "yas marina", "emirates"]
+  events: ["sema", "goodwood", "motor show", "auto salon", "pebble beach", "le mans", "monterey", "festival of speed"]
+  wild: ["number plate", "plate auction", "police", "hypercar", "one-off", "record", "million", "most expensive",
+         "fastest", "world's", "drift", "dune", "liwa", "moreeb", "drag", "robotaxi", "flying taxi", "gold",
+         "abandoned", "collection", "bugatti", "koenigsegg", "devel", "w motors", "lykan"]
+  brands: ["patrol", "land cruiser", "lexus", "gt-r", "supra", "skyline", "ferrari", "lamborghini", "rolls-royce",
+           "bentley", "g-class", "amg", "bmw m", "porsche", "911", "mclaren", "bugatti", "koenigsegg", "pagani",
+           "range rover", "defender", "mustang", "raptor", "bronco", "wrangler", "corvette", "camaro", "tahoe",
+           "escalade", "nismo", "type r", "gr ", "rs ", "byd", "tesla", "lucid", "zeekr", "jetour", "tank 300"]
+
+# Brands used for the rotating Google News brand searches
+brands: ["Nissan", "Toyota", "Lexus", "Ferrari", "Lamborghini", "Porsche", "Mercedes-AMG", "BMW M", "Rolls-Royce",
+         "Bentley", "McLaren", "Aston Martin", "Ford", "Chevrolet", "GMC", "Cadillac", "Dodge", "Jeep", "Land Rover",
+         "Honda", "Mazda", "Subaru", "Mitsubishi", "Hyundai N", "Kia", "Genesis", "Audi RS", "Bugatti", "Koenigsegg",
+         "BYD", "Tesla", "Lucid", "Zeekr", "Jetour", "Polestar", "Maserati", "Alfa Romeo", "Lotus"]
+
+# Stories whose titles contain these are ignored (deals, buying guides, ads...)
+exclude_keywords: ["deal", "discount", "lease", "coupon", "best tires", "how to", "buying guide", "sponsored",
+                   "giveaway", "insurance quote", "our picks", "ranked:", "vs.", "podcast", "quiz", "horoscope",
+                   "obituary", "crash kills", "killed", "dies in"]

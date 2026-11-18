@@ -1,0 +1,46 @@
+name: Make drafts
+
+on:
+  schedule:
+    - cron: "17 5 * * *"    # 09:17 UAE
+    - cron: "47 11 * * *"   # 15:47 UAE
+  workflow_dispatch:
+    inputs:
+      news:
+        description: "Number of news drafts"
+        default: "2"
+      throwback:
+        description: "Number of throwback drafts"
+        default: "0"
+
+concurrency:
+  group: revert-data
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  draft:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: bash scripts/data_branch.sh pull
+      - name: Draft
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            python -m revert draft --news "${{ inputs.news }}" --throwback "${{ inputs.throwback }}"
+          else
+            python -m revert draft
+          fi

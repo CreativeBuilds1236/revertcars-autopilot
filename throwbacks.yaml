@@ -1,0 +1,66 @@
+# Throwback topics. Each one is a Wikipedia article title.
+# The system picks the one used longest ago (never repeats within ~2 months),
+# reads the Wikipedia article for facts, and uses Wikimedia Commons photos.
+# "angle" is an optional hint for the writer. Add or remove freely.
+
+topics:
+  # JDM legends
+  - { title: "Nissan Skyline GT-R", angle: "R32 era and the Godzilla nickname" }
+  - { title: "Toyota Supra", angle: "the A80 / Mk4 and the 2JZ" }
+  - { title: "Mazda RX-7", angle: "the FD and the rotary engine" }
+  - { title: "Honda NSX (first generation)", angle: "the mid-engine supercar that embarrassed Ferrari" }
+  - { title: "Toyota AE86", angle: "the humble hatch that became a drift icon" }
+  - { title: "Mitsubishi Lancer Evolution", angle: "rally-bred saloon" }
+  - { title: "Subaru Impreza WRX STI", angle: "blue and gold rally icon" }
+  - { title: "Nissan Silvia", angle: "S13 to S15, drift scene favourite" }
+  - { title: "Datsun 240Z", angle: "Japan's first true sports car hit" }
+  - { title: "Toyota 2000GT" }
+  - { title: "Honda S2000" }
+  - { title: "Nissan 300ZX" }
+  - { title: "Toyota Chaser" }
+  - { title: "Lexus LFA", angle: "the V10 that sounds like heaven" }
+  - { title: "Honda Integra Type R" }
+
+  # Gulf / UAE car culture
+  - { title: "Nissan Patrol", angle: "the Gulf's desert king, Y60/Y61 era" }
+  - { title: "Toyota Land Cruiser 70 Series", angle: "the unkillable desert workhorse" }
+  - { title: "Toyota Land Cruiser", angle: "why the Gulf loves it" }
+  - { title: "Chevrolet Caprice", angle: "the classic big saloon of the Gulf" }
+  - { title: "Mercedes-Benz G-Class", angle: "military truck to Dubai status symbol" }
+  - { title: "Toyota Hilux" }
+  - { title: "Nissan Safari" }
+  - { title: "Yas Marina Circuit", angle: "first Abu Dhabi Grand Prix in 2009" }
+  - { title: "Dubai Autodrome" }
+  - { title: "Dubai Police", angle: "the supercar patrol fleet" }
+  - { title: "Lykan HyperSport", angle: "the Arab-world supercar from W Motors" }
+  - { title: "Ferrari World" }
+
+  # European icons
+  - { title: "Ferrari F40" }
+  - { title: "Lamborghini Countach" }
+  - { title: "Lamborghini Miura" }
+  - { title: "Porsche 959" }
+  - { title: "McLaren F1" }
+  - { title: "BMW M3 (E30)" }
+  - { title: "Mercedes-Benz 190E 2.5-16 Evolution II" }
+  - { title: "Lancia Delta Integrale" }
+  - { title: "Audi Quattro" }
+  - { title: "Porsche 911 (930)" }
+  - { title: "Ferrari Testarossa" }
+  - { title: "Jaguar E-Type" }
+  - { title: "Lancia Stratos" }
+  - { title: "Bugatti Veyron" }
+  - { title: "Ford GT40" }
+  - { title: "Mercedes-Benz 300 SL" }
+  - { title: "Lamborghini Diablo" }
+
+  # American muscle
+  - { title: "Ford Mustang (first generation)" }
+  - { title: "Dodge Charger (B-body)" }
+  - { title: "Chevrolet Camaro (first generation)" }
+  - { title: "Pontiac GTO" }
+  - { title: "Shelby Cobra" }
+  - { title: "Dodge Viper" }
+  - { title: "Chevrolet Corvette (C2)" }
+  - { title: "Buick Grand National" }
+  - { title: "Plymouth Barracuda" }
