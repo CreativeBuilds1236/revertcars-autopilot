@@ -122,22 +122,38 @@ def extra_photo_slides(photos, style, out_dir: Path, prefix: str) -> list[Path]:
 # ───────────────────────── drafting run ─────────────────────────
 
 def draft_run(cfg, state: State, tg: Telegram | None, n_news: int | None = None,
-              n_throwback: int | None = None, client=None) -> list[dict]:
+              n_throwback: int | None = None, client=None, n_wild: int = 0, n_culture: int = 0) -> list[dict]:
+    """Scheduled run (no counts given): the daily plan from config.yaml —
+    `news_per_day` news drafts + one "rotation" draft (crazy UAE → throwback → car culture → ...).
+    If the rotation lane has nothing good today, it falls back to one more news story.
+    Manual runs / bot commands pass explicit counts instead."""
     d = cfg["drafting"]
-    n_news = d.get("news_per_run", 2) if n_news is None else n_news
     today = datetime.now(tz(cfg)).date().isoformat()
-    if n_throwback is None:
-        n_throwback = d.get("throwback_per_day", 1) if state.data.get("last_throwback_day") != today else 0
+    fallback_news = False
+    if n_news is None and n_throwback is None:
+        n_news = d.get("news_per_day", 1)
+        n_throwback = 0
+        rotation = d.get("rotation", ["uae_wild", "throwback", "culture"])
+        if rotation:
+            idx = state.data.get("rotation_index", 0)
+            lane = rotation[idx % len(rotation)]
+            state.data["rotation_index"] = idx + 1
+            log.info("Today's rotation slot: %s", lane)
+            n_wild, n_throwback, n_culture = int(lane == "uae_wild"), int(lane == "throwback"), int(lane == "culture")
+            fallback_news = True
+    n_news = n_news or 0
+    n_throwback = n_throwback or 0
 
     made = []
-    n_wild = d.get("uae_wild_per_run", 1) if n_news else 0
-    if n_news or n_wild:
+    if n_news or n_wild or n_culture:
         terms, extra_q = trends.trending_terms(cfg)
         clusters, _health = sources.ranked_candidates(cfg, state, terms, extra_q)
         used = set()
 
         def run_lane(pool, want, wild):
             got, attempts = 0, 0
+            if want <= 0:
+                return 0
             for c in pool:
                 if got >= want or attempts >= want * 4:
                     break
@@ -160,17 +176,34 @@ def draft_run(cfg, state: State, tg: Telegram | None, n_news: int | None = None,
                     made.append(dr)
                     deliver(dr, tg, state)
                     got += 1
+            return got
 
-        run_lane([c for c in clusters if c.is_wild(cfg)], n_wild, True)     # "Only in the UAE" slot
-        run_lane(clusters, n_news, False)
+        short = 0
+        short += n_wild - run_lane([c for c in clusters if c.is_wild(cfg)], n_wild, True)     # "Only in the UAE"
+        short += n_culture - run_lane([c for c in clusters if any(s.culture for s in c.stories)], n_culture, False)
+        run_lane(clusters, n_news + (short if fallback_news else 0), False)
+    tb_made = 0
     for _ in range(n_throwback):
         item = throwback.build_throwback(cfg, state)
         if item:
             dr = make_draft(item, cfg, state, client)
             if dr:
                 made.append(dr)
+                tb_made += 1
                 state.data["last_throwback_day"] = today
                 deliver(dr, tg, state)
+    if fallback_news and tb_made < n_throwback and not n_wild and not n_culture:
+        terms, extra_q = trends.trending_terms(cfg)
+        clusters, _ = sources.ranked_candidates(cfg, state, terms, extra_q)
+        for c in clusters[:4]:
+            for s in c.stories:
+                state.mark_seen(s.url, s.fp)
+            item = prepare_news(c, cfg)
+            dr = make_draft(item, cfg, state, client) if item else None
+            if dr:
+                made.append(dr)
+                deliver(dr, tg, state)
+                break
     if tg and not made:
         tg.send_text("🤷 Drafting run found nothing worth posting this time (no fresh, well-sourced stories).")
     storage.sync(state, f"drafts {today}")
@@ -260,7 +293,7 @@ HELP = ("<b>Revert Media bot</b>\n"
         "🔗 Reddit link + the photo(s) → community post credited to the poster\n"
         "📰 Any article link → a news post (fact-checked as usual)\n"
         "Add <code>credit: @name</code> or <code>u/name</code> to set the photo credit.\n\n"
-        "/status — what's queued\n/draft — make new drafts now\n/throwback — make a throwback draft now")
+        "/status — what's queued\n/draft — 1 news + 1 crazy-UAE draft now\n/throwback — a throwback draft now")
 
 
 def handle_update(u: dict, cfg, state: State, tg: Telegram, client=None, ig=None):
@@ -349,7 +382,7 @@ def handle_update(u: dict, cfg, state: State, tg: Telegram, client=None, ig=None
         tg.send_text("\n".join(lines))
     elif cmd == "/draft":
         tg.send_text("On it — new drafts in a minute or two.")
-        draft_run(cfg, state, tg, n_throwback=0, client=client)
+        draft_run(cfg, state, tg, n_news=1, n_throwback=0, client=client, n_wild=1)
     elif cmd == "/throwback":
         tg.send_text("Digging through the archives…")
         draft_run(cfg, state, tg, n_news=0, n_throwback=1, client=client)

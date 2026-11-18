@@ -267,7 +267,7 @@ def main():
     cfg["google_news"]["brand_queries_per_run"] = 0
     state, tg, ai, ig = State(), FakeTG(), FakeClaude(), FakeIG()
 
-    made = pipeline.draft_run(cfg, state, tg, n_news=2, n_throwback=1, client=ai)
+    made = pipeline.draft_run(cfg, state, tg, n_news=2, n_throwback=1, client=ai, n_wild=1)
     kinds = [(d["id"], d["kind"], d["category"], len(d["images"]), d["style"]["template"]) for d in made]
     print("Drafts:", kinds)
     assert len(made) == 4, kinds
@@ -344,6 +344,18 @@ def main():
     assert any("📥 Got it" in t for t in tg.texts())
     assert not state.data.get("inbox")
     print("Community draft:", c["headline"], "|", c["style"], "| images:", len(c["images"]))
+
+    # ── the daily scheduled plan: exactly 2 drafts, rotation lane falls back to news when empty ──
+    s2, tg2 = State(Path(TMP / "plan.json")), FakeTG()
+    s2.data["rotation_index"] = 2                      # today = "culture", and the fixtures have no culture stories
+    plan = pipeline.draft_run(cfg, s2, tg2, client=ai)
+    assert len(plan) == 2 and all(p["kind"] == "news" for p in plan), [(p["kind"], p["category"]) for p in plan]
+    s3 = State(Path(TMP / "plan3.json"))
+    s3.data["rotation_index"] = 1                      # today = "throwback"
+    plan3 = pipeline.draft_run(cfg, s3, FakeTG(), client=ai)
+    assert sorted(p["kind"] for p in plan3) == ["news", "throwback"], [p["kind"] for p in plan3]
+    assert s3.data["rotation_index"] == 2
+    print("Daily plan OK:", [(p["kind"], p["category"]) for p in plan], [(p["kind"], p["category"]) for p in plan3])
 
     # slots never double-book
     a = pipeline.next_free_slot(cfg, state)

@@ -6,8 +6,8 @@ It all runs for free on GitHub, so nothing needs to stay switched on at home.
 
 ```
  News feeds + Google News + Trends ──► pick the best fresh stories (no repeats, no deals/ads)
- "Only in the UAE" searches ───────► one crazy-local-car-stuff slot every run
- Wikipedia archives ───────────────► daily throwback
+ "Only in the UAE" searches ───────► crazy local car stuff (every 3rd day)
+ Wikipedia archives ───────────────► old-scene throwbacks (every 3rd day)
  Stuff YOU send the bot ───────────► Reddit posts, photos, article links → drafts
           │
           ▼
@@ -20,7 +20,7 @@ It all runs for free on GitHub, so nothing needs to stay switched on at home.
  Telegram: ✅ Approve  🚀 Post now  🔄 Rewrite  ❌ Skip   (or reply to change the caption)
           │
           ▼
- Instagram: posted at the next slot — 13:00 · 19:00 · 22:00 UAE
+ Instagram: posted at the next slot — 18:00 · 21:00 UAE
 ```
 
 ---
@@ -79,13 +79,15 @@ Drafts land in Telegram within a few minutes. From then on, everything runs by i
 
 ## Day to day
 
-- **09:15 and 15:45 UAE:** you get about 2 news drafts each time, plus 1 throwback a day.
-- Tap **✅ Approve** to post at the next free slot (13:00 / 19:00 / 22:00), or **🚀 Post now** to post immediately.
+- **Every day at about 10:15 UAE** you get **2 drafts**: the best news story, plus one from the rotation:
+  crazy UAE stuff → throwback → car culture → (repeat). If the rotation lane has nothing good that day,
+  you get a second news story instead. Change this in `config.yaml` (`news_per_day`, `rotation`).
+- Tap **✅ Approve** to post at the next free slot (18:00 / 21:00), or **🚀 Post now** to post immediately.
 - **🔄 Rewrite** gives a new caption and a new design for the same story. **❌ Skip** bins it.
 - **Reply** to the draft's text message with your own words to replace the caption. The source line and
   hashtags are kept automatically.
 - Drafts you ignore expire after 48 hours.
-- Bot commands: `/status` (what's queued), `/draft` (fresh drafts now), `/throwback`, `/help`.
+- Bot commands: `/status` (what's queued), `/draft` (1 news + 1 crazy-UAE draft now), `/throwback`, `/help`.
 
 ### Send stuff to the bot (Reddit, your own spots, links)
 Reddit stopped allowing automatic reading: it switched off its RSS feeds on 13 Nov 2026 and is closing
@@ -101,7 +103,7 @@ Write `credit: @someone` or `u/someone` in the message to set the photo credit.
 Claims from posters ("only one in the UAE", "800 hp") are always attributed ("the owner says"), never stated as fact.
 
 ## "Only in the UAE" lane
-Every drafting run reserves one spot for crazy local car stories: record plate auctions, Dubai Police
+Every third day the second draft is reserved for crazy local car stories: record plate auctions, Dubai Police
 supercars, Liwa/Moreeb dune climbs, drag and drift events, hypercars, robotaxis, Top Gear Middle East.
 These come only from trusted sources (The National, WAM, RTA, Dubai/Abu Dhabi Police, Emirates Auction,
 Top Gear ME, DriveArabia, YallaMotor...) and get the **ONLY IN THE UAE** tag. Searches are in `config.yaml`
@@ -135,7 +137,9 @@ publishers, boosted keywords and brands. Throwback topics are in `throwbacks.yam
 
 ## Costs
 GitHub: free (public repo). Telegram: free. Instagram API: free.
-Claude: roughly **$3–8 a month** at this volume (writer + fact checker).
+Claude: roughly **$1.50–3 a month** at 2 drafts a day (about 2 cents per draft, writer + fact checker),
+billed separately from any Claude subscription. Set a monthly limit in the Claude Console to be safe.
+Want it even cheaper? Set `writer_model: "claude-haiku-5-5"` in `config.yaml` (under $0.50/month, slightly less witty).
 
 ## Where things live
 - `revert/`: the code (sources, writer, designer, Telegram, Instagram, scheduler)

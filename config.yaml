@@ -13,14 +13,16 @@ page:
 
 schedule:
   # Approved posts go out at the next free slot (UAE time).
-  post_slots: ["13:00", "19:00", "22:00"]
+  post_slots: ["18:00", "21:00"]
   # Drafts that you don't answer within this many hours expire.
   draft_expiry_hours: 48
 
 drafting:
-  news_per_run: 2          # news drafts each time the drafter runs (it runs twice a day)
-  uae_wild_per_run: 1      # extra "Only in the UAE" draft per run, when there's a good one
-  throwback_per_day: 1     # throwback drafts per day
+  # The drafter runs once a day and makes: news_per_day news drafts + 1 "rotation" draft.
+  # The rotation cycles through the lanes below, one per day. If today's lane has nothing good,
+  # you get another news story instead. Set rotation: [] to switch the second draft off.
+  news_per_day: 1
+  rotation: ["uae_wild", "throwback", "culture"]   # crazy UAE stuff → old-scene throwback → car culture
   carousel_probability: 0.55   # chance a story with 2+ good photos becomes a carousel
   max_carousel_slides: 5       # including the cover
   outro_slide: true            # "follow @revertcars.media" card at the end of carousels
