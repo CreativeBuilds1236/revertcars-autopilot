@@ -20,12 +20,23 @@ from .telegram_bot import Telegram, discover_chat_id
 from .util import env, http, load_config, log
 
 
+def configured() -> bool:
+    """Scheduled runs wait quietly (instead of failing) until setup is finished."""
+    missing = [k for k in ("TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "ANTHROPIC_API_KEY") if not env(k)]
+    if missing:
+        log.info("Not set up yet (missing secrets: %s) — skipping. Run 'Setup check' for help.", ", ".join(missing))
+        return False
+    return True
+
+
 def cmd_draft(a, cfg):
-    pipeline.draft_run(cfg, State(), Telegram(), n_news=a.news, n_throwback=a.throwback)
+    if configured():
+        pipeline.draft_run(cfg, State(), Telegram(), n_news=a.news, n_throwback=a.throwback)
 
 
 def cmd_poll(a, cfg):
-    pipeline.poll_run(cfg, State(), Telegram(), listen=a.listen)
+    if configured():
+        pipeline.poll_run(cfg, State(), Telegram(), listen=a.listen)
 
 
 def cmd_refresh(a, cfg):
