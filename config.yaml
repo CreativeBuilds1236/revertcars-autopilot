@@ -30,7 +30,10 @@ drafting:
   min_source_chars: 500        # stories with less source text than this are skipped (too thin to fact-check)
 
 ai:
-  writer_model: "claude-sonnet-5-5"
+  # Haiku writes everyday drafts (~0.2 cents each). Sonnet (~2 cents) is only used when you tap 🔄 Rewrite.
+  # For Sonnet on everything, set writer_model to "claude-sonnet-5-5" (about $1.50-3 a month).
+  writer_model: "claude-haiku-5-5"
+  rewrite_model: "claude-sonnet-5-5"
   checker_model: "claude-haiku-5-5"
   british_spelling: true
 

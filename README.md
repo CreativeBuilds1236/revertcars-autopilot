@@ -137,9 +137,10 @@ publishers, boosted keywords and brands. Throwback topics are in `throwbacks.yam
 
 ## Costs
 GitHub: free (public repo). Telegram: free. Instagram API: free.
-Claude: roughly **$1.50–3 a month** at 2 drafts a day (about 2 cents per draft, writer + fact checker),
-billed separately from any Claude subscription. Set a monthly limit in the Claude Console to be safe.
-Want it even cheaper? Set `writer_model: "claude-haiku-5-5"` in `config.yaml` (under $0.50/month, slightly less witty).
+Claude: about **10–20 cents a month** at 2 drafts a day. Haiku writes and checks everyday drafts (~0.2 cents each),
+and the stronger Sonnet model (~2 cents) is only used when you tap 🔄 Rewrite. This is billed separately from any
+Claude subscription. Set a monthly spend limit in the Claude Console so it can never surprise you.
+For Sonnet on every draft, set `writer_model: "claude-sonnet-5-5"` in `config.yaml` (about $1.50–3 a month).
 
 ## Where things live
 - `revert/`: the code (sources, writer, designer, Telegram, Instagram, scheduler)

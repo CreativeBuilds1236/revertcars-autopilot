@@ -42,7 +42,7 @@ def prepare_news(cluster: sources.Cluster, cfg) -> dict | None:
 
 
 def make_draft(item: dict, cfg, state: State, client=None, note: str = "", photos: list | None = None,
-               tg: Telegram | None = None, avoid_style: dict | None = None) -> dict | None:
+               tg: Telegram | None = None, avoid_style: dict | None = None, model: str | None = None) -> dict | None:
     did = state.new_id()
     WORK.mkdir(exist_ok=True)
     d = cfg["drafting"]
@@ -60,7 +60,7 @@ def make_draft(item: dict, cfg, state: State, client=None, note: str = "", photo
     if item["kind"] == "community" and carousel:
         n_slides = 0          # community carousels are photo-led: cover + extra photos, no fact slides
 
-    post = writer.write_post(item, cfg, n_slides=n_slides, note=note, client=client, images=photos)
+    post = writer.write_post(item, cfg, n_slides=n_slides, note=note, client=client, images=photos, model=model)
     if post.get("skip"):
         log.info("Writer skipped '%s': %s", item["title"], post.get("skip_reason"))
         return None
@@ -335,7 +335,8 @@ def handle_update(u: dict, cfg, state: State, tg: Telegram, client=None, ig=None
             item = d["item"]
             note = ("Write a fresh version: a different opening line, a different joke, different headline. "
                     f"The previous caption was:\n{d['caption']}")
-            new = make_draft(item, cfg, state, client, note=note, tg=tg, avoid_style=d.get("style"))
+            new = make_draft(item, cfg, state, client, note=note, tg=tg, avoid_style=d.get("style"),
+                             model=cfg.get("ai", {}).get("rewrite_model"))
             d.update(status="replaced", updated=now_utc().isoformat())
             state.put(d)
             if new:

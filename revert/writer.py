@@ -199,7 +199,8 @@ def post_text_for_check(post: dict) -> str:
     return "\n".join(parts)
 
 
-def write_post(item: dict, cfg: dict, n_slides: int = 0, note: str = "", client=None, images=None) -> dict:
+def write_post(item: dict, cfg: dict, n_slides: int = 0, note: str = "", client=None, images=None,
+               model: str | None = None) -> dict:
     """Write a post, fact-check it, and retry once if the checker finds invented facts."""
     client = client or _client()
     ai = cfg.get("ai", {})
@@ -213,7 +214,7 @@ def write_post(item: dict, cfg: dict, n_slides: int = 0, note: str = "", client=
     post, check = None, None
     for attempt in range(2):
         imgs = images if item["kind"] == "community" else None
-        post = _tool_call(client, ai.get("writer_model", "claude-sonnet-5-5"), system, user, POST_TOOL,
+        post = _tool_call(client, model or ai.get("writer_model", "claude-haiku-5-5"), system, user, POST_TOOL,
                           images=imgs)
         if post.get("skip"):
             return post

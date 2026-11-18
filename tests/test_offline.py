@@ -301,6 +301,9 @@ def main():
     assert s[d3]["status"] == "posted" and len(ig.published) == 1
     assert len(ig.published[0][0]) == len(s[d3]["images"]) > 1                      # carousel published
     assert s[d2]["status"] == "replaced"
+    writers = [c[0] for c in ai.calls if c[1] == "submit_post"]
+    assert writers[:4] == ["claude-haiku-5-5"] * 4, writers                 # everyday drafts: cheap model
+    assert writers[-1] == "claude-sonnet-5-5", writers                       # 🔄 Rewrite: stronger model
     new_id = str(max(int(k) for k in s))
     assert s[new_id]["headline"].startswith("Patrol Nismo:") or s[new_id]["status"] == "pending"
     assert state.data["tg_offset"] == 5
