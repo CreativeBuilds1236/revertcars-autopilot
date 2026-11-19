@@ -70,19 +70,42 @@ def call(cfg, role: str, system: str, user: str, tool: dict, images=None, client
     if provider(cfg) == "anthropic":
         out = _anthropic(client, model, system, user, tool, images, max_tokens)
     else:
-        try:
-            out = _gemini(model, system, user, tool, images, max_tokens)
-        except ModelNotFound:
-            alt = pick_available_gemini(role)
-            log.warning("Gemini model %s not found — using %s instead (update config.yaml)", model, alt)
-            out = _gemini(alt, system, user, tool, images, max_tokens)
-        except (QuotaExceeded, ModelTooSlow) as ex:
-            lite = model_for(cfg, "checker")
-            if role == "checker" or lite == model:
-                raise
-            log.warning("%s — falling back to %s", ex, lite)
-            out = _gemini(lite, system, user, tool, images, max_tokens)
+        # Try the chosen model, then the backups (free models are sometimes busy or out of quota).
+        chain = [model] + [m for m in gemini_backups(cfg, role) if m != model]
+        last_err = None
+        out = None
+        for m in chain:
+            try:
+                out = _gemini(m, system, user, tool, images, max_tokens)
+                break
+            except ModelNotFound:
+                try:
+                    alt = pick_available_gemini(role)
+                except Exception as ex:
+                    last_err = ex
+                    continue
+                if alt in chain:
+                    continue
+                log.warning("Gemini model %s not found — trying %s (update config.yaml)", m, alt)
+                try:
+                    out = _gemini(alt, system, user, tool, images, max_tokens)
+                    break
+                except (QuotaExceeded, ModelTooSlow, ModelNotFound) as ex:
+                    last_err = ex
+            except (QuotaExceeded, ModelTooSlow) as ex:
+                log.warning("%s — trying the next model", ex)
+                last_err = ex
+        if out is None:
+            raise last_err or RuntimeError("No Gemini model available")
     return normalise(out, tool)
+
+
+def gemini_backups(cfg, role: str) -> list[str]:
+    g = cfg.get("ai", {}).get("gemini", {}) or {}
+    backups = g.get("backup_models") or ["gemini-2.5-flash", model_for(cfg, "checker"), "gemini-2.5-flash-lite"]
+    if role == "checker":      # the checker is already the light model; its backups are the other light ones
+        backups = [b for b in backups if "lite" in b] + [b for b in backups if "lite" not in b]
+    return backups
 
 
 # ───────────────────────── Anthropic (Claude) ─────────────────────────
@@ -124,7 +147,7 @@ def _gemini(model, system, user, tool, images, max_tokens) -> dict:
                              "thinkingConfig": {"thinkingLevel": "low"}},   # faster; captions don't need deep thought
     }
     last = ""
-    timeouts = 0
+    timeouts = busy = 0
     for attempt in range(6):
         try:
             r = http().post(f"{GEMINI}/models/{model}:generateContent", json=body,
@@ -169,8 +192,11 @@ def _gemini(model, system, user, tool, images, max_tokens) -> dict:
             m = re.search(r'"retryDelay":\s*"(\d+)', txt)
             time.sleep(min(int(m.group(1)) + 2 if m else 30, 65))
             continue
-        if r.status_code >= 500:
-            time.sleep(10 * (attempt + 1))
+        if r.status_code >= 500:            # "model is experiencing high demand" etc.
+            busy += 1
+            if busy >= 3:
+                raise ModelTooSlow(f"{model} is overloaded right now ({r.status_code})")
+            time.sleep(8 * busy)
             continue
         break
     raise RuntimeError(f"Gemini request failed ({last})")

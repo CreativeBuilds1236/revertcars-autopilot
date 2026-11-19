@@ -39,6 +39,8 @@ ai:
     writer_model: "gemini-3.5-flash"
     rewrite_model: "gemini-3.5-flash"
     checker_model: "gemini-3.1-flash-lite"
+    # If a model is busy, out of free quota or renamed, these are tried in order:
+    backup_models: ["gemini-2.5-flash", "gemini-3.1-flash-lite", "gemini-2.5-flash-lite"]
   anthropic:
     writer_model: "claude-haiku-5-5"
     rewrite_model: "claude-sonnet-5-5"     # only used when you tap 🔄 Rewrite
