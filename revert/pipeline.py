@@ -56,7 +56,11 @@ def make_draft(item: dict, cfg, state: State, client=None, note: str = "", photo
     carousel = len(photos) >= 2 and random.random() < d.get("carousel_probability", 0.55)
     if item["kind"] == "throwback" and len(photos) >= 2:
         carousel = carousel or random.random() < 0.5
-    n_slides = max(1, min(len(photos) - 1, max_slides - 2 - int(d.get("outro_slide", True)))) if carousel else 0
+    outro = int(d.get("outro_slide", True))
+    min_slides = d.get("min_carousel_slides", 4)
+    room = max_slides - 1 - outro                  # slots between the cover and the follow card
+    # enough fact slides to reach the minimum, more when there are photos for them (one slot left for a stat)
+    n_slides = min(room, max(min_slides - 1 - outro, min(len(photos) - 1, room - 1))) if carousel else 0
     if item["kind"] == "community" and carousel:
         n_slides = 0          # community carousels are photo-led: cover + extra photos, no fact slides
 
@@ -80,7 +84,12 @@ def make_draft(item: dict, cfg, state: State, client=None, note: str = "", photo
     prefix = f"d{did}_{int(time.time())}"
     out, style = render.render_post(post, photos, item["source_name"], cfg["page"]["handle"], MEDIA_DIR,
                                     prefix, carousel, d.get("outro_slide", True) and not community_carousel,
-                                    recent=recent, kind=item["kind"], credit=credit, issue=int(did))
+                                    recent=recent, kind=item["kind"], credit=credit, issue=int(did),
+                                    min_total=0 if community_carousel else min_slides)
+    if carousel and not community_carousel and len(out) < min_slides:
+        # the writer found fewer facts than slots: top up with clean photo slides (before the follow card)
+        pad = extra_photo_slides((photos[1:] + photos)[: min_slides - len(out)], style, MEDIA_DIR, prefix + "p")
+        out = out[:-1] + pad + out[-1:] if outro else out + pad
     if community_carousel:      # the other photos as clean filmic slides, then the outro
         out += extra_photo_slides(photos[1:], style, MEDIA_DIR, prefix)
         if d.get("outro_slide", True):

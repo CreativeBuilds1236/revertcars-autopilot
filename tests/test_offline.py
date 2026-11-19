@@ -273,6 +273,7 @@ def main():
     kinds = [(d["id"], d["kind"], d["category"], len(d["images"]), d["style"]["template"]) for d in made]
     print("Drafts:", kinds)
     assert len(made) == 4, kinds
+    assert all(len(d["images"]) == 1 or len(d["images"]) >= 4 for d in made), kinds   # carousels: 4+ slides
     wild = made[0]
     assert wild["category"] == "ONLY_IN_UAE" and wild["source_name"] == "The National", wild   # UAE lane first
     made = made[1:]

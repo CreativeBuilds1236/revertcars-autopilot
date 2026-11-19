@@ -829,7 +829,8 @@ def choose_style(kind: str, has_photo: bool, recent: list[dict], rng: random.Ran
 
 def render_post(post: dict, photos: list[Path], source: str, handle: str, out_dir: Path, prefix: str,
                 carousel: bool, outro: bool = True, recent: list | None = None, kind: str = "news",
-                credit: str = "", issue: int = 1, style: dict | None = None) -> tuple[list[Path], dict]:
+                credit: str = "", issue: int = 1, style: dict | None = None,
+                min_total: int = 0) -> tuple[list[Path], dict]:
     seed = random.randint(0, 10_000)
     rng = random.Random(seed)
     imgs = [Image.open(p).convert("RGB") for p in photos]
@@ -843,7 +844,7 @@ def render_post(post: dict, photos: list[Path], source: str, handle: str, out_di
     if carousel:
         details = post.get("slides", [])
         has_stat = bool(post.get("stat", {}).get("value"))
-        total = 1 + len(details) + int(has_stat) + int(outro)
+        total = max(1 + len(details) + int(has_stat) + int(outro), min_total)   # incl. any topped-up slides
         n = 2
         if has_stat:
             slides.append(STATS[style["stat"]](post, imgs[1 % len(imgs)] if imgs else None, n, total, th, seed))
