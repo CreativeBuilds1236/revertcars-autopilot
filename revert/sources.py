@@ -169,8 +169,10 @@ def collect_google_news(cfg, extra_queries: list[str] | None = None) -> tuple[li
 
 
 def is_excluded(title: str, cfg) -> bool:
+    """Whole-word match, so "toy" skips toy stories but never "Toyota"."""
     t = title.lower()
-    return any(k in t for k in cfg.get("exclude_keywords", []))
+    return any(re.search(r"(?<![a-z0-9])" + re.escape(k.lower()) + r"(?![a-z0-9])", t)
+               for k in cfg.get("exclude_keywords", []))
 
 
 def cluster_stories(stories: list[Story], threshold: float = 0.42) -> list[Cluster]:
