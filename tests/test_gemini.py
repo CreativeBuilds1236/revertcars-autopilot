@@ -105,6 +105,24 @@ def main():
     writer.write_post(item, cfg)
     assert g.calls[1][0] == "gemini-3.1-flash-lite", g.calls
 
+    # 5b. writer model too slow (timeouts) -> falls back to Flash-Lite
+    def slow(m, b):
+        raise TimeoutError("read timed out")
+    g = FakeGoogle([slow, slow, lambda m, b: answer(NEWS_POST), lambda m, b: answer(ok)])
+    util._session = g
+    writer.write_post(item, cfg)
+    assert [c[0] for c in g.calls][2] == "gemini-3.1-flash-lite", g.calls
+
+    # 5c. model doesn't know the thinking setting -> retries without it
+    seen_thinking = []
+
+    def no_thinking(m, b):
+        seen_thinking.append("thinkingConfig" in b["generationConfig"])
+        return R(400, "Unknown name thinkingConfig: thinking_level not supported") if seen_thinking[-1] else answer(NEWS_POST)
+    util._session = FakeGoogle([no_thinking, no_thinking, lambda m, b: answer(ok)])
+    writer.write_post(item, cfg)
+    assert seen_thinking == [True, False], seen_thinking
+
     # 6. everything used up -> QuotaExceeded, and the pipeline sends ONE friendly Telegram notice
     from revert import pipeline
     from revert.state import State

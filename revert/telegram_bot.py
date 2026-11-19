@@ -125,7 +125,7 @@ def discover_chat_id(token: str) -> list[tuple[str, str]]:
     """Used by the setup check: who has messaged the bot?"""
     tg = Telegram(token=token, chat_id="0")
     found = []
-    for u in tg.call("getUpdates", timeout=0):
+    for u in tg.updates(0, wait=0):
         m = u.get("message") or (u.get("callback_query") or {}).get("message")
         if m:
             c = m["chat"]

@@ -33,6 +33,10 @@ class ModelNotFound(RuntimeError):
     pass
 
 
+class ModelTooSlow(RuntimeError):
+    pass
+
+
 def provider(cfg) -> str:
     return cfg.get("ai", {}).get("provider", "gemini")
 
@@ -72,11 +76,11 @@ def call(cfg, role: str, system: str, user: str, tool: dict, images=None, client
             alt = pick_available_gemini(role)
             log.warning("Gemini model %s not found — using %s instead (update config.yaml)", model, alt)
             out = _gemini(alt, system, user, tool, images, max_tokens)
-        except QuotaExceeded:
+        except (QuotaExceeded, ModelTooSlow) as ex:
             lite = model_for(cfg, "checker")
             if role == "checker" or lite == model:
                 raise
-            log.warning("Daily free limit reached for %s — falling back to %s", model, lite)
+            log.warning("%s — falling back to %s", ex, lite)
             out = _gemini(lite, system, user, tool, images, max_tokens)
     return normalise(out, tool)
 
@@ -116,12 +120,21 @@ def _gemini(model, system, user, tool, images, max_tokens) -> dict:
         "contents": [{"role": "user", "parts": parts}],
         # thinking models count their thinking against the output budget, so leave plenty of room
         "generationConfig": {"responseMimeType": "application/json", "responseJsonSchema": schema,
-                             "maxOutputTokens": max(max_tokens, 8192), "temperature": 0.8},
+                             "maxOutputTokens": max(max_tokens, 8192), "temperature": 0.8,
+                             "thinkingConfig": {"thinkingLevel": "low"}},   # faster; captions don't need deep thought
     }
     last = ""
-    for attempt in range(5):
-        r = http().post(f"{GEMINI}/models/{model}:generateContent", json=body,
-                        headers={"x-goog-api-key": key}, timeout=120)
+    timeouts = 0
+    for attempt in range(6):
+        try:
+            r = http().post(f"{GEMINI}/models/{model}:generateContent", json=body,
+                            headers={"x-goog-api-key": key}, timeout=75)
+        except Exception as ex:          # read timeout / connection drop on a busy free model
+            timeouts += 1
+            last = f"{type(ex).__name__}"
+            if timeouts >= 2:
+                raise ModelTooSlow(f"{model} is too slow right now ({last})")
+            continue
         last = f"{r.status_code}: {r.text[:300]}"
         if r.status_code == 200:
             data = r.json()
@@ -140,6 +153,9 @@ def _gemini(model, system, user, tool, images, max_tokens) -> dict:
                 if attempt < 2:
                     continue
                 raise
+        if r.status_code == 400 and "thinkingConfig" in body["generationConfig"] and "thinking" in r.text.lower():
+            body["generationConfig"].pop("thinkingConfig")      # model doesn't support the setting
+            continue
         if r.status_code == 400 and "responseJsonSchema" in body["generationConfig"]:
             # older/other models may not accept a full JSON schema — fall back to plain JSON mode
             body["generationConfig"].pop("responseJsonSchema")

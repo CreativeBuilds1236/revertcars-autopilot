@@ -60,17 +60,14 @@ feeds:
   - { name: "Car and Driver", url: "https://www.caranddriver.com/rss/all.xml/", weight: 1.0 }
   - { name: "Road & Track",  url: "https://www.roadandtrack.com/rss/all.xml/",  weight: 1.0 }
   - { name: "Autocar",       url: "https://www.autocar.co.uk/rss",              weight: 1.0 }
-  - { name: "Top Gear",      url: "https://www.topgear.com/car-news/rss",       weight: 1.0 }
   - { name: "The Drive",     url: "https://www.thedrive.com/feed",              weight: 0.9 }
-  - { name: "Autoblog",      url: "https://www.autoblog.com/rss.xml",           weight: 0.9 }
   - { name: "InsideEVs",     url: "https://insideevs.com/rss/news/all/",        weight: 0.8 }
   # Car culture — the "cool car stuff" lane (builds, barn finds, auctions, weird history)
-  - { name: "Speedhunters",  url: "https://www.speedhunters.com/feed/",         weight: 0.9, culture: true }
+  # (Speedhunters has gone offline; Hemmings/Autoblog/Top Gear block GitHub's servers — Top Gear & Autoblog
+  #  are covered through Google News below.)
   - { name: "Hagerty",       url: "https://www.hagerty.com/media/feed/",        weight: 0.8, culture: true }
   - { name: "Jalopnik",      url: "https://jalopnik.com/rss",                   weight: 0.8, culture: true }
-  - { name: "Hemmings",      url: "https://www.hemmings.com/stories/feed",      weight: 0.7, culture: true }
-  # UAE
-  - { name: "DriveArabia",   url: "https://www.drivearabia.com/feed/",          weight: 1.2, uae: true }
+  # UAE — DriveArabia blocks GitHub's servers, so it's searched through Google News instead (see below)
 
 # Google News searches (UAE edition). {brand} rotates through the brand list below.
 google_news:
@@ -83,6 +80,9 @@ google_news:
     - '"UAE fuel prices" when:5d'
     - 'SEMA OR Goodwood OR "Dubai Motor Show" OR "Tokyo Auto Salon" OR "Geneva Motor Show" when:3d'
     - 'new car reveal OR unveiled OR debut when:1d'
+    - 'site:drivearabia.com when:3d'
+    - 'site:topgear.com news when:2d'
+    - 'site:autoblog.com when:2d'
   # "Only in the UAE" lane — the crazy local stuff. One of these gets a reserved spot every run.
   uae_wild_queries:
     - 'Dubai OR "Abu Dhabi" number plate auction record when:7d'
