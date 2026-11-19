@@ -45,18 +45,17 @@ DARK = [k for k, t in THEMES.items() if not t["paper"]]
 PAPER = [k for k, t in THEMES.items() if t["paper"]]
 
 # cover templates: which themes and post kinds they suit, and whether they need a photo
+# The house style: a small set of clean layouts, one brand accent (the logo's pink).
+# (boxes / sticker / ticker / polaroid layouts still exist below but are switched off — they looked gimmicky.)
 TEMPLATES = {
-    "fade":     dict(themes=DARK, kinds={"news", "community"}, photo=False),
-    "boxes":    dict(themes=DARK, kinds={"news", "community"}, photo=True),
-    "split":    dict(themes=DARK + PAPER, kinds={"news"}, photo=False),
-    "magazine": dict(themes=PAPER, kinds={"news", "throwback"}, photo=True),
-    "sticker":  dict(themes=DARK, kinds={"news", "community", "throwback"}, photo=True),
-    "ticker":   dict(themes=["olive", "mono", "teal", "plum"], kinds={"news"}, photo=True),
-    "vhs":      dict(themes=["olive", "teal", "sunset", "mono"], kinds={"throwback"}, photo=True),
-    "polaroid": dict(themes=["olive", "plum", "cream", "teal"], kinds={"throwback", "community"}, photo=True),
+    "full":     dict(themes=["olive", "mono"], kinds={"news", "community"}, photo=True),
+    "fade":     dict(themes=["olive", "mono"], kinds={"news", "community"}, photo=False),
+    "split":    dict(themes=["olive", "cream"], kinds={"news"}, photo=False),
+    "magazine": dict(themes=["cream", "newsprint"], kinds={"throwback"}, photo=True),
+    "vhs":      dict(themes=["olive", "sunset", "mono"], kinds={"throwback"}, photo=True),
 }
-DETAIL_LAYOUTS = ["panel", "card", "numbered"]
-STAT_LAYOUTS = ["glow", "block"]
+DETAIL_LAYOUTS = ["panel", "numbered"]
+STAT_LAYOUTS = ["glow"]
 
 TAG_TEXT = {"ONLY_IN_UAE": "ONLY IN THE UAE", "SPOTTED": "SPOTTED"}
 
@@ -95,19 +94,15 @@ def filmify(im: Image.Image, theme: dict, strength: float = 1.0, seed: int = 0) 
         im = ImageOps.grayscale(im).convert("RGB")
         im = ImageEnhance.Contrast(im).enhance(1.15)
     else:
-        im = ImageEnhance.Color(im).enhance(1 - 0.18 * strength)
+        im = ImageEnhance.Color(im).enhance(1 - 0.08 * strength)
     a = np.asarray(im, dtype=np.float32)
     h, w = a.shape[:2]
-    a = a * (1 - 0.10 * strength) + 16 * strength
-    a = a * (1 + (np.array(theme["tint"]) - 1) * strength)
-    shift = int(2 * strength)
-    if shift and not theme.get("mono"):
-        a[:, shift:, 0] = a[:, :-shift, 0]
-        a[:, :-shift, 2] = a[:, shift:, 2]
+    a = a * (1 - 0.05 * strength) + 8 * strength                       # gently lifted blacks
+    a = a * (1 + (np.array(theme["tint"]) - 1) * 0.6 * strength)        # light tint, not a colour cast
     yy, xx = np.mgrid[0:h, 0:w]
     d = np.sqrt(((xx - w / 2) / (w / 2)) ** 2 + ((yy - h / 2) / (h / 2)) ** 2)
-    a *= (1 - 0.38 * strength * np.clip(d - 0.55, 0, 1) ** 1.4)[..., None]
-    a = np.clip(a + rng.normal(0, 9 * strength, (h, w))[..., None], 0, 255).astype(np.uint8)
+    a *= (1 - 0.22 * strength * np.clip(d - 0.6, 0, 1) ** 1.5)[..., None]
+    a = np.clip(a + rng.normal(0, 4.5 * strength, (h, w))[..., None], 0, 255).astype(np.uint8)   # fine grain
     return Image.fromarray(a)
 
 
@@ -365,7 +360,7 @@ def headline_block(im, post, th, x, bottom, max_w, max_lines=3, start=132, minim
     if bar:
         d.rectangle([x, y0 - 40, x + 90, y0 - 32], fill=th["accent"])
     xy = [((x, y0 + cap + i * lh), l) for i, l in enumerate(head_lines)]
-    im = glow_text(im, xy, head_f, th["text"], radius=14, glow_alpha=110, anchor="ls") if glow else \
+    im = glow_text(im, xy, head_f, th["text"], radius=10, glow_alpha=55, anchor="ls") if glow else \
         plain_text(im, xy, head_f, th["text"], anchor="ls")
     d = ImageDraw.Draw(im)
     ky = y0 + cap + (len(head_lines) - 1) * lh + 30
@@ -431,21 +426,36 @@ def cover_boxes(post, photo, ctx):
     return footer(im, ctx["left"], ctx["right"], WHITE, th["accent"])
 
 
+def cover_full(post, photo, ctx):
+    """Clean editorial cover: full-bleed photo, dark gradient, headline + kicker bottom-left."""
+    th, seed = ctx["theme"], ctx["seed"]
+    im = filmify(smart_crop(photo, W, H), th, 1.0, seed)
+    im = vertical_fade(im, int(H * 0.42), H, (8, 9, 7), 235, power=1.6)
+    im = vertical_fade(im.transpose(Image.FLIP_TOP_BOTTOM), int(H * 0.82), H, (8, 9, 7), 120)\
+        .transpose(Image.FLIP_TOP_BOTTOM)                                    # soft top shade for the logo
+    im = paste_badge(im)
+    pill(im, tag_for(post), W - 52, 70, *tag_colors(post, th))
+    th2 = dict(th, text=CREAM)
+    im, _ = headline_block(im, post, th2, 64, H - 128, W - 128, max_lines=3, start=118, minimum=64,
+                           kicker_color=(225, 221, 208))
+    return footer(im, ctx["left"], ctx["right"], (215, 210, 196), th["accent"])
+
+
 def cover_split(post, photo, ctx):
     """Colour band with a huge headline on top, photo underneath with a slanted edge."""
     th, seed = ctx["theme"], ctx["seed"]
     band_h = 560
-    band_col = th["accent"] if not th["paper"] else th["bg"]
-    ink = th["on_accent"] if not th["paper"] else th["text"]
+    band_col = th["bg2"] if not th["paper"] else th["bg"]
+    ink = th["text"]
     im = textured(band_col, seed=seed, grad=0.12, noise=5)
     ph = photo_fill(photo, th, W, H - band_h + 60, seed)
     mask = Image.new("L", (W, H - band_h + 60), 255)
     ImageDraw.Draw(mask).polygon([(0, 0), (W, 0), (W, 0), (0, 60)], fill=0)
     im.paste(ph, (0, band_h - 60), mask)
-    im = comp(im, halftone((W, band_h - 60), ink, 5, 18, "radial", 40))
+    im = comp(im, halftone((420, 300), th["accent"], 6, 20, "diag", 60), (W - 420, 0))
     im = vertical_fade(im, H - 380, H, (0, 0, 0), 230)
     im = paste_badge(im, 100, (44, 40))
-    tbg, tfg = (RED, WHITE) if post.get("is_rumour") else (ink, band_col)
+    tbg, tfg = tag_colors(post, th)
     pill(im, tag_for(post), W - 52, 56, tbg, tfg)
     d = ImageDraw.Draw(im)
     avail = band_h - 60 - 170 - 30
@@ -641,7 +651,7 @@ def cover_polaroid(post, photo, ctx):
     return footer(im, ctx["left"], ctx["right"], col, th["accent"], rule=False)
 
 
-COVERS = {"fade": cover_fade, "boxes": cover_boxes, "split": cover_split, "magazine": cover_magazine,
+COVERS = {"full": cover_full, "fade": cover_fade, "boxes": cover_boxes, "split": cover_split, "magazine": cover_magazine,
           "sticker": cover_sticker, "ticker": cover_ticker, "vhs": cover_vhs, "polaroid": cover_polaroid}
 
 
@@ -728,7 +738,7 @@ def text_points(im, post, slide, th, x, bottom, max_w, color, accent, glow=True,
     title_h = cap + (len(title_lines) - 1) * lh
     y0 = bottom - pts_h - title_h - 40
     xy = [((x, y0 + cap + i * lh), l) for i, l in enumerate(title_lines)]
-    im = glow_text(im, xy, title_f, color, radius=12, glow_alpha=110, anchor="ls") if glow else \
+    im = glow_text(im, xy, title_f, color, radius=8, glow_alpha=50, anchor="ls") if glow else \
         plain_text(im, xy, title_f, color, anchor="ls")
     d = ImageDraw.Draw(im)
     y = y0 + title_h + 36
@@ -772,7 +782,7 @@ def stat_text(im, post, color, label_color, glow=True, top_offset=0):
     block = cap + (len(vlines) - 1) * lh
     y0 = H // 2 - block // 2 - 60 + top_offset
     xy = [((W // 2, y0 + cap + i * lh), l) for i, l in enumerate(vlines)]
-    im = glow_text(im, xy, vf, color, radius=20, glow_alpha=170, anchor="ms") if glow else \
+    im = glow_text(im, xy, vf, color, radius=14, glow_alpha=80, anchor="ms") if glow else \
         plain_text(im, xy, vf, color, anchor="ms")
     d = ImageDraw.Draw(im)
     lf, llines = fit_text(d, post["stat"]["label"].upper(), "cond8", W - 160, 2, 50, 34)
