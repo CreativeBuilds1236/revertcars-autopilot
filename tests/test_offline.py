@@ -261,6 +261,7 @@ def main():
     from revert import article
     article.resolve_google_news = lambda u: "https://www.thenationalnews.com/uae/plate-aa7" if "PLATE" in u else None
     cfg = util.load_config()
+    cfg["ai"]["provider"] = "anthropic"          # this rehearsal uses the fake Claude; tests/test_gemini.py covers Gemini
     cfg["drafting"]["carousel_probability"] = 1.0
     cfg["google_news"]["queries"] = []
     cfg["google_news"]["uae_wild_queries"] = ['Dubai number plate auction record when:7d']

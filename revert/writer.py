@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import json
 
-from .util import env, log
+from . import llm
+from .util import log
 
 VOICE = """\
 You write Instagram posts for Revert Media (@revertcars.media): a car page for a UAE audience that covers
@@ -138,39 +139,6 @@ CHECK_PROMPT += """
 verdict: "ok" = nothing unsupported; "minor" = small wording issues; "major" = any wrong or invented fact."""
 
 
-def _client():
-    import anthropic
-    return anthropic.Anthropic(api_key=env("ANTHROPIC_API_KEY", required=True))
-
-
-def _image_blocks(paths) -> list[dict]:
-    import base64
-    import io
-    from PIL import Image
-    blocks = []
-    for p in (paths or [])[:3]:
-        im = Image.open(p).convert("RGB")
-        im.thumbnail((1024, 1024))
-        buf = io.BytesIO()
-        im.save(buf, "JPEG", quality=85)
-        blocks.append({"type": "image", "source": {"type": "base64", "media_type": "image/jpeg",
-                                                   "data": base64.b64encode(buf.getvalue()).decode()}})
-    return blocks
-
-
-def _tool_call(client, model, system, user, tool, max_tokens=2500, images=None) -> dict:
-    content = _image_blocks(images) + [{"type": "text", "text": user}] if images else user
-    resp = client.messages.create(
-        model=model, max_tokens=max_tokens, system=system,
-        messages=[{"role": "user", "content": content}],
-        tools=[tool], tool_choice={"type": "tool", "name": tool["name"]},
-    )
-    for block in resp.content:
-        if getattr(block, "type", "") == "tool_use":
-            return dict(block.input)
-    raise RuntimeError("Model did not return a tool call")
-
-
 def _source_block(item: dict) -> str:
     others = [o for o in item.get("outlets", []) if o != item["source_name"]]
     head = (f"KIND: {item['kind']}\nTITLE: {item['title']}\nPUBLISHER: {item['source_name']}\n"
@@ -200,9 +168,9 @@ def post_text_for_check(post: dict) -> str:
 
 
 def write_post(item: dict, cfg: dict, n_slides: int = 0, note: str = "", client=None, images=None,
-               model: str | None = None) -> dict:
-    """Write a post, fact-check it, and retry once if the checker finds invented facts."""
-    client = client or _client()
+               rewrite: bool = False) -> dict:
+    """Write a post, fact-check it, and retry once if the checker finds invented facts.
+    Uses whichever AI provider config.yaml picks (free Gemini by default)."""
     ai = cfg.get("ai", {})
     system = VOICE.format(spelling="British" if ai.get("british_spelling", True) else "American",
                           n_slides=n_slides or "0 (single image post: return an empty slides list)",
@@ -214,13 +182,13 @@ def write_post(item: dict, cfg: dict, n_slides: int = 0, note: str = "", client=
     post, check = None, None
     for attempt in range(2):
         imgs = images if item["kind"] == "community" else None
-        post = _tool_call(client, model or ai.get("writer_model", "claude-haiku-5-5"), system, user, POST_TOOL,
-                          images=imgs)
+        post = llm.call(cfg, "rewrite" if rewrite else "writer", system, user, POST_TOOL,
+                        images=imgs, client=client)
         if post.get("skip"):
             return post
-        check = _tool_call(client, ai.get("checker_model", "claude-haiku-5-5"), CHECK_PROMPT,
-                           f"SOURCE:\n\"\"\"\n{item['text']}\n\"\"\"\n\nPOST:\n{post_text_for_check(post)}",
-                           CHECK_TOOL, max_tokens=1000, images=imgs)
+        check = llm.call(cfg, "checker", CHECK_PROMPT,
+                         f"SOURCE:\n\"\"\"\n{item['text']}\n\"\"\"\n\nPOST:\n{post_text_for_check(post)}",
+                         CHECK_TOOL, images=imgs, client=client, max_tokens=1000)
         log.info("Fact check: %s %s", check.get("verdict"), check.get("unsupported"))
         if check.get("verdict") != "major":
             break

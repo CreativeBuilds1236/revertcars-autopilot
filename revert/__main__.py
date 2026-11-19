@@ -22,7 +22,8 @@ from .util import env, http, load_config, log
 
 def configured() -> bool:
     """Scheduled runs wait quietly (instead of failing) until setup is finished."""
-    missing = [k for k in ("TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "ANTHROPIC_API_KEY") if not env(k)]
+    from . import llm
+    missing = [k for k in ("TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", llm.key_name(load_config())) if not env(k)]
     if missing:
         log.info("Not set up yet (missing secrets: %s) — skipping. Run 'Setup check' for help.", ", ".join(missing))
         return False
@@ -89,18 +90,25 @@ def cmd_setup_check(a, cfg):
         except Exception as ex:
             line(False, f"Telegram token rejected: {ex}")
 
-    # Claude
-    if not env("ANTHROPIC_API_KEY"):
-        line(False, "ANTHROPIC_API_KEY secret is missing")
+    # AI writer (free Gemini by default, or Claude)
+    from . import llm
+    kname = llm.key_name(cfg)
+    if not env(kname):
+        line(False, f"{kname} secret is missing" + (" (free key from aistudio.google.com)"
+                                                    if kname == "GEMINI_API_KEY" else ""))
     else:
-        try:
-            import anthropic
-            c = anthropic.Anthropic(api_key=env("ANTHROPIC_API_KEY"))
-            c.messages.create(model=cfg["ai"]["checker_model"], max_tokens=5,
-                              messages=[{"role": "user", "content": "Say ok"}])
-            line(True, "Claude API key works")
-        except Exception as ex:
-            line(False, f"Claude API problem: {str(ex)[:200]}")
+        probe = {"name": "report", "input_schema": {"type": "object", "properties": {
+            "ok": {"type": "boolean"}}, "required": ["ok"]}}
+        for role in ("writer", "checker"):
+            try:
+                llm.call(cfg, role, "You are a health check.", 'Reply {"ok": true}', probe, max_tokens=50)
+                line(True, f"AI {role} works ({llm.provider(cfg)}: {llm.model_for(cfg, role)})")
+            except llm.ModelNotFound:
+                alt = llm.pick_available_gemini(role)
+                line(False, f"Model {llm.model_for(cfg, role)} doesn't exist any more. In config.yaml set "
+                            f"{role}_model to \"{alt}\" (it's being used automatically until then)")
+            except Exception as ex:
+                line(False, f"AI {role} problem: {str(ex)[:200]}")
 
     # Instagram
     if not env("IG_ACCESS_TOKEN"):

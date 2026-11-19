@@ -11,7 +11,7 @@ It all runs for free on GitHub, so nothing needs to stay switched on at home.
  Stuff YOU send the bot ───────────► Reddit posts, photos, article links → drafts
           │
           ▼
- Claude writes it (facts only from the source) ──► second AI fact-checks it
+ AI writes it (free Gemini; facts only from the source) ──► second AI fact-checks it
           │
           ▼
  Designer makes a single post or carousel (1080×1350, retro film look + your logo)
@@ -43,7 +43,7 @@ Repo → **Settings → Secrets and variables → Actions → New repository sec
 | Name | What it is |
 |---|---|
 | `TELEGRAM_BOT_TOKEN` | the token from BotFather |
-| `ANTHROPIC_API_KEY` | from console.anthropic.com → API keys (add ~$5 credit) |
+| `GEMINI_API_KEY` | **free**: aistudio.google.com → sign in with Google → **Get API key** → Create API key (no card needed) |
 | `IG_ACCESS_TOKEN` | from step 4 |
 | `TELEGRAM_CHAT_ID` | from step 5 |
 | `GH_PAT` | from step 6 (lets the Instagram token renew itself) |
@@ -137,10 +137,14 @@ publishers, boosted keywords and brands. Throwback topics are in `throwbacks.yam
 
 ## Costs
 GitHub: free (public repo). Telegram: free. Instagram API: free.
-Claude: about **10–20 cents a month** at 2 drafts a day. Haiku writes and checks everyday drafts (~0.2 cents each),
-and the stronger Sonnet model (~2 cents) is only used when you tap 🔄 Rewrite. This is billed separately from any
-Claude subscription. Set a monthly spend limit in the Claude Console so it can never surprise you.
-For Sonnet on every draft, set `writer_model: "claude-sonnet-5-5"` in `config.yaml` (about $1.50–3 a month).
+AI: **free**. Captions are written and fact-checked by Google Gemini on its free tier, which is well above the
+2 drafts a day this needs. On the free tier Google may use what's sent to improve its products (it's public
+car news, so that's usually fine). If the free daily limit ever runs out, the bot tells you in Telegram and
+carries on the next day. If Google renames a model, the system switches to the newest one by itself.
+
+**Optional upgrade:** Claude writes sharper, wittier captions for about 10–20 cents a month. Add an
+`ANTHROPIC_API_KEY` secret (console.anthropic.com, billed separately from any Claude subscription) and set
+`provider: "anthropic"` under `ai:` in `config.yaml`.
 
 ## Where things live
 - `revert/`: the code (sources, writer, designer, Telegram, Instagram, scheduler)

@@ -8,7 +8,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from . import article, render, sources, storage, submissions, throwback, trends, writer
+from . import article, llm, render, sources, storage, submissions, throwback, trends, writer
 from .submissions import URL_RE
 from .instagram import Instagram
 from .state import MEDIA_DIR, State
@@ -42,7 +42,7 @@ def prepare_news(cluster: sources.Cluster, cfg) -> dict | None:
 
 
 def make_draft(item: dict, cfg, state: State, client=None, note: str = "", photos: list | None = None,
-               tg: Telegram | None = None, avoid_style: dict | None = None, model: str | None = None) -> dict | None:
+               tg: Telegram | None = None, avoid_style: dict | None = None, rewrite: bool = False) -> dict | None:
     did = state.new_id()
     WORK.mkdir(exist_ok=True)
     d = cfg["drafting"]
@@ -60,7 +60,7 @@ def make_draft(item: dict, cfg, state: State, client=None, note: str = "", photo
     if item["kind"] == "community" and carousel:
         n_slides = 0          # community carousels are photo-led: cover + extra photos, no fact slides
 
-    post = writer.write_post(item, cfg, n_slides=n_slides, note=note, client=client, images=photos, model=model)
+    post = writer.write_post(item, cfg, n_slides=n_slides, note=note, client=client, images=photos, rewrite=rewrite)
     if post.get("skip"):
         log.info("Writer skipped '%s': %s", item["title"], post.get("skip_reason"))
         return None
@@ -169,6 +169,9 @@ def draft_run(cfg, state: State, tg: Telegram | None, n_news: int | None = None,
                 item["uae_wild"] = wild
                 try:
                     dr = make_draft(item, cfg, state, client)
+                except llm.QuotaExceeded:
+                    quota_hit(tg, state)
+                    return want                     # stop: no point trying more today
                 except Exception as ex:
                     log.exception("Draft failed for %s: %s", item["title"], ex)
                     continue
@@ -186,7 +189,11 @@ def draft_run(cfg, state: State, tg: Telegram | None, n_news: int | None = None,
     for _ in range(n_throwback):
         item = throwback.build_throwback(cfg, state)
         if item:
-            dr = make_draft(item, cfg, state, client)
+            try:
+                dr = make_draft(item, cfg, state, client)
+            except llm.QuotaExceeded:
+                quota_hit(tg, state)
+                break
             if dr:
                 made.append(dr)
                 tb_made += 1
@@ -199,16 +206,32 @@ def draft_run(cfg, state: State, tg: Telegram | None, n_news: int | None = None,
             for s in c.stories:
                 state.mark_seen(s.url, s.fp)
             item = prepare_news(c, cfg)
-            dr = make_draft(item, cfg, state, client) if item else None
+            try:
+                dr = make_draft(item, cfg, state, client) if item else None
+            except llm.QuotaExceeded:
+                quota_hit(tg, state)
+                break
             if dr:
                 made.append(dr)
                 deliver(dr, tg, state)
                 break
-    if tg and not made:
+    if tg and not made and state.data.get("quota_notice") != now_utc().date().isoformat():
         tg.send_text("🤷 Drafting run found nothing worth posting this time (no fresh, well-sourced stories).")
     storage.sync(state, f"drafts {today}")
     shutil.rmtree(WORK, ignore_errors=True)
     return made
+
+
+def quota_hit(tg: Telegram | None, state: State):
+    """Tell the owner once per day that the free AI allowance has run out."""
+    day = now_utc().date().isoformat()
+    if state.data.get("quota_notice") == day:
+        return
+    state.data["quota_notice"] = day
+    log.warning("Free AI daily limit reached")
+    if tg:
+        tg.send_text("⏸️ The free AI limit for today has run out, so no more drafts until it resets "
+                     "(around 11am UAE). Nothing is broken — it'll carry on by itself.")
 
 
 def deliver(draft: dict, tg: Telegram | None, state: State):
@@ -336,7 +359,7 @@ def handle_update(u: dict, cfg, state: State, tg: Telegram, client=None, ig=None
             note = ("Write a fresh version: a different opening line, a different joke, different headline. "
                     f"The previous caption was:\n{d['caption']}")
             new = make_draft(item, cfg, state, client, note=note, tg=tg, avoid_style=d.get("style"),
-                             model=cfg.get("ai", {}).get("rewrite_model"))
+                             rewrite=True)
             d.update(status="replaced", updated=now_utc().isoformat())
             state.put(d)
             if new:
