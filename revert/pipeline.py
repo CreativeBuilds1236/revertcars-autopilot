@@ -56,6 +56,13 @@ def make_draft(item: dict, cfg, state: State, client=None, note: str = "", photo
     carousel = len(photos) >= 2 and random.random() < d.get("carousel_probability", 0.55)
     if item["kind"] == "throwback" and len(photos) >= 2:
         carousel = carousel or random.random() < 0.5
+    # daily carousel quota: the first drafts of the day are carousels until the minimum is reached
+    today = datetime.now(tz(cfg)).date().isoformat()
+    cc = state.data.get("carousel_count") or {}
+    if cc.get("day") != today:
+        cc = {"day": today, "n": 0}
+    if not carousel and item["kind"] != "community" and photos and cc["n"] < d.get("min_carousels_per_day", 0):
+        carousel = True
     outro = int(d.get("outro_slide", True))
     min_slides = d.get("min_carousel_slides", 4)
     room = max_slides - 1 - outro                  # slots between the cover and the follow card
@@ -96,6 +103,9 @@ def make_draft(item: dict, cfg, state: State, client=None, note: str = "", photo
             p = MEDIA_DIR / f"{prefix}_{len(out) + 1}.jpg"
             render.outro_slide(cfg["page"]["handle"], render.THEMES[style["theme"]]).save(p, "JPEG", quality=90)
             out.append(p)
+    if carousel:
+        cc["n"] += 1
+        state.data["carousel_count"] = cc
     state.data.setdefault("recent_styles", []).append(style)
     state.data["recent_styles"] = state.data["recent_styles"][-6:]
     caption = writer.final_caption(post, item, cfg)

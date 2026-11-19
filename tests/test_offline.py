@@ -352,10 +352,18 @@ def main():
     print("Community draft:", c["headline"], "|", c["style"], "| images:", len(c["images"]))
 
     # ── the daily scheduled plan: exactly 2 drafts, rotation lane falls back to news when empty ──
+    cfg["drafting"]["news_per_day"] = 1                      # small plan so the fixture stories are enough
     s2, tg2 = State(Path(TMP / "plan.json")), FakeTG()
     s2.data["rotation_index"] = 2                      # today = "culture", and the fixtures have no culture stories
     plan = pipeline.draft_run(cfg, s2, tg2, client=ai)
     assert len(plan) == 2 and all(p["kind"] == "news" for p in plan), [(p["kind"], p["category"]) for p in plan]
+    cfg["drafting"]["carousel_probability"] = 0.0           # even with carousels "off", the daily minimum applies
+    s4 = State(Path(TMP / "plan4.json"))
+    plan4 = pipeline.draft_run(cfg, s4, FakeTG(), client=ai, n_news=3, n_throwback=0)
+    n_car = sum(1 for p in plan4 if len(p["images"]) >= 4)
+    assert len(plan4) >= 2 and n_car >= min(2, len(plan4)), [(p["headline"], len(p["images"])) for p in plan4]
+    print("Daily carousel minimum OK:", [len(p["images"]) for p in plan4])
+    cfg["drafting"]["carousel_probability"] = 1.0
     s3 = State(Path(TMP / "plan3.json"))
     s3.data["rotation_index"] = 1                      # today = "throwback"
     plan3 = pipeline.draft_run(cfg, s3, FakeTG(), client=ai)

@@ -13,7 +13,7 @@ page:
 
 schedule:
   # Approved posts go out at the next free slot (UAE time).
-  post_slots: ["18:00", "21:00"]
+  post_slots: ["13:00", "18:00", "21:00"]
   # Drafts that you don't answer within this many hours expire.
   draft_expiry_hours: 48
 
@@ -21,10 +21,11 @@ drafting:
   # The drafter runs once a day and makes: news_per_day news drafts + 1 "rotation" draft.
   # The rotation cycles through the lanes below, one per day. If today's lane has nothing good,
   # you get another news story instead. Set rotation: [] to switch the second draft off.
-  news_per_day: 1
+  news_per_day: 3          # 3 news + 1 rotation = 4 drafts a day (one spare, so you can skip one and still post 3)
   rotation: ["uae_wild", "throwback", "culture"]   # crazy UAE stuff → old-scene throwback → car culture
   carousel_probability: 0.8    # chance a story with 2+ good photos becomes a carousel (1.0 = always)
   min_carousel_slides: 4       # carousels always have at least this many slides
+  min_carousels_per_day: 2     # at least this many of each day's drafts are carousels
   max_carousel_slides: 6       # including the cover and the follow card
   outro_slide: true            # "follow @revertcars.media" card at the end of carousels
   max_story_age_hours: 36

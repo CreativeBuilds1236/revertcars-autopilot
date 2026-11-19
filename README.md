@@ -20,7 +20,7 @@ It all runs for free on GitHub, so nothing needs to stay switched on at home.
  Telegram: ✅ Approve  🚀 Post now  🔄 Rewrite  ❌ Skip   (or reply to change the caption)
           │
           ▼
- Instagram: posted at the next slot — 18:00 · 21:00 UAE
+ Instagram: posted at the next slot — 13:00 · 18:00 · 21:00 UAE
 ```
 
 ---
@@ -106,17 +106,18 @@ your repo's Actions tab. GitHub's own timer stays switched on as a backup, and t
 in one day.
 
 ### 8. Go
-**Actions → Make drafts → Run workflow**, leaving the boxes blank, to get today's 2 drafts now.
+**Actions → Make drafts → Run workflow**, leaving the boxes blank, to get today's drafts now.
 Drafts land in Telegram within a few minutes. From then on, everything runs by itself.
 
 ---
 
 ## Day to day
 
-- **Every day at about 10:15 UAE** you get **2 drafts**: the best news story, plus one from the rotation:
+- **Every day at about 10:15 UAE** you get **4 drafts**: the 3 best news stories, plus one from the rotation:
   crazy UAE stuff → throwback → car culture → (repeat). If the rotation lane has nothing good that day,
-  you get a second news story instead. Change this in `config.yaml` (`news_per_day`, `rotation`).
-- Tap **✅ Approve** to post at the next free slot (18:00 / 21:00), or **🚀 Post now** to post immediately.
+  you get another news story instead. At least 2 of each day's drafts are
+  carousels with 4+ slides, and there's one spare so you can skip one and still post 3. Change this in `config.yaml` (`news_per_day`, `rotation`).
+- Tap **✅ Approve** to post at the next free slot (13:00 / 18:00 / 21:00), or **🚀 Post now** to post immediately.
 - **🔄 Rewrite** gives a new caption and a new design for the same story. **❌ Skip** bins it.
 - **Reply** to the draft's text message with your own words to replace the caption. The source line and
   hashtags are kept automatically.
@@ -171,8 +172,8 @@ publishers, boosted keywords and brands. Throwback topics are in `throwbacks.yam
 
 ## Costs
 GitHub: free (public repo). Telegram: free. Instagram API: free.
-AI: **free**. Captions are written and fact-checked by Google Gemini on its free tier, which is well above the
-2 drafts a day this needs. On the free tier Google may use what's sent to improve its products (it's public
+AI: **free**. Captions are written and fact-checked by Google Gemini on its free tier, which covers the
+4 drafts a day this makes. On the free tier Google may use what's sent to improve its products (it's public
 car news, so that's usually fine). If the free daily limit ever runs out, the bot tells you in Telegram and
 carries on the next day. If Google renames a model, the system switches to the newest one by itself.
 
