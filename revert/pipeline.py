@@ -247,6 +247,30 @@ def quota_hit(tg: Telegram | None, state: State):
                      "(around 11am UAE). Nothing is broken — it'll carry on by itself.")
 
 
+def draft_from_url(cfg, state: State, tg: Telegram | None, url: str, client=None) -> list[dict]:
+    """Draft one specific article (used by 'Make drafts' with a link)."""
+    item, problem = submissions.build_item({"text": url, "photos": [], "msg_id": None}, cfg)
+    if not item:
+        if tg:
+            tg.send_text(f"🤔 {html.escape(problem)}")
+        log.warning("Can't draft %s: %s", url, problem)
+        return []
+    from .util import tokens
+    state.mark_seen(item["url"], tokens(item["title"]))
+    try:
+        dr = make_draft(item, cfg, state, client)
+    except llm.QuotaExceeded:
+        quota_hit(tg, state)
+        dr = None
+    if dr:
+        deliver(dr, tg, state)
+    elif tg and state.data.get("quota_notice") != now_utc().date().isoformat():
+        tg.send_text("The writer didn't think that article could be posted accurately, so I skipped it.")
+    storage.sync(state, "draft from link")
+    shutil.rmtree(WORK, ignore_errors=True)
+    return [dr] if dr else []
+
+
 def deliver(draft: dict, tg: Telegram | None, state: State):
     if tg:
         tg.send_draft(draft, [MEDIA_DIR / n for n in draft["images"]])

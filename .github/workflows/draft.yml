@@ -13,6 +13,9 @@ on:
       throwback:
         description: "Number of throwback drafts"
         default: ""
+      url:
+        description: "Or paste an article link to draft that story"
+        default: ""
 
 concurrency:
   group: revert-data
@@ -41,7 +44,12 @@ jobs:
       - run: bash scripts/data_branch.sh pull
       - name: Draft
         run: |
+          if [ -n "$IN_URL" ]; then python -m revert draft --url "$IN_URL"; exit; fi
           ARGS=""
-          if [ -n "${{ inputs.news }}" ]; then ARGS="$ARGS --news ${{ inputs.news }}"; fi
-          if [ -n "${{ inputs.throwback }}" ]; then ARGS="$ARGS --throwback ${{ inputs.throwback }}"; fi
+          if [ -n "$IN_NEWS" ]; then ARGS="$ARGS --news $IN_NEWS"; fi
+          if [ -n "$IN_TB" ]; then ARGS="$ARGS --throwback $IN_TB"; fi
           python -m revert draft $ARGS
+        env:
+          IN_URL: ${{ inputs.url }}
+          IN_NEWS: ${{ inputs.news }}
+          IN_TB: ${{ inputs.throwback }}

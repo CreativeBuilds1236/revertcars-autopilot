@@ -31,7 +31,11 @@ def configured() -> bool:
 
 
 def cmd_draft(a, cfg):
-    if configured():
+    if not configured():
+        return
+    if a.url:
+        pipeline.draft_from_url(cfg, State(), Telegram(), a.url)
+    else:
         pipeline.draft_run(cfg, State(), Telegram(), n_news=a.news, n_throwback=a.throwback)
 
 
@@ -170,6 +174,7 @@ def main():
     d = sub.add_parser("draft")
     d.add_argument("--news", type=int, default=None)
     d.add_argument("--throwback", type=int, default=None)
+    d.add_argument("--url", default="")
     pl = sub.add_parser("poll")
     pl.add_argument("--listen", type=int, default=240)
     sub.add_parser("setup-check")

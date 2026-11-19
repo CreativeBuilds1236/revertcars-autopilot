@@ -102,10 +102,20 @@ def call(cfg, role: str, system: str, user: str, tool: dict, images=None, client
 
 def gemini_backups(cfg, role: str) -> list[str]:
     g = cfg.get("ai", {}).get("gemini", {}) or {}
-    backups = g.get("backup_models") or ["gemini-2.5-flash", model_for(cfg, "checker"), "gemini-2.5-flash-lite"]
+    backups = g.get("backup_models") or ["auto", model_for(cfg, "checker"), "auto-lite"]
+    out = []
+    for b in backups:
+        if b in ("auto", "auto-lite"):         # newest Flash / Flash-Lite this key can use, looked up live
+            try:
+                b = pick_available_gemini("checker" if b == "auto-lite" or role == "checker" else "writer")
+            except Exception as ex:
+                log.info("Couldn't list Gemini models: %s", ex)
+                continue
+        if b not in out:
+            out.append(b)
     if role == "checker":      # the checker is already the light model; its backups are the other light ones
-        backups = [b for b in backups if "lite" in b] + [b for b in backups if "lite" not in b]
-    return backups
+        out = [b for b in out if "lite" in b] + [b for b in out if "lite" not in b]
+    return out
 
 
 # ───────────────────────── Anthropic (Claude) ─────────────────────────

@@ -103,14 +103,14 @@ def main():
                     lambda m, b: answer(NEWS_POST), lambda m, b: answer(ok)])
     util._session = g
     writer.write_post(item, cfg)
-    assert g.calls[1][0] == "gemini-2.5-flash", g.calls
+    assert g.calls[1][0] == "gemini-3.6-flash", g.calls
 
     # 5a. "high demand" 503s -> moves on to the next model in the chain
     busy = lambda m, b: R(503, "This model is currently experiencing high demand.")
     g = FakeGoogle([busy, busy, busy, lambda m, b: answer(NEWS_POST), lambda m, b: answer(ok)])
     util._session = g
     writer.write_post(item, cfg)
-    assert [c[0] for c in g.calls][:4] == ["gemini-3.5-flash"] * 3 + ["gemini-2.5-flash"], g.calls
+    assert [c[0] for c in g.calls][:4] == ["gemini-3.5-flash"] * 3 + ["gemini-3.6-flash"], g.calls
 
     # 5b. writer model too slow (timeouts) -> falls back to Flash-Lite
     def slow(m, b):
@@ -118,7 +118,7 @@ def main():
     g = FakeGoogle([slow, slow, lambda m, b: answer(NEWS_POST), lambda m, b: answer(ok)])
     util._session = g
     writer.write_post(item, cfg)
-    assert [c[0] for c in g.calls][2] == "gemini-2.5-flash", g.calls
+    assert [c[0] for c in g.calls][2] == "gemini-3.6-flash", g.calls
 
     # 5c. model doesn't know the thinking setting -> retries without it
     seen_thinking = []
