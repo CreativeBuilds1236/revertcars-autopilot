@@ -359,6 +359,7 @@ def main():
     plan3 = pipeline.draft_run(cfg, s3, FakeTG(), client=ai)
     assert sorted(p["kind"] for p in plan3) == ["news", "throwback"], [p["kind"] for p in plan3]
     assert s3.data["rotation_index"] == 2
+    assert pipeline.draft_run(cfg, s3, FakeTG(), client=ai) == []          # 2nd trigger same day: no duplicates
     print("Daily plan OK:", [(p["kind"], p["category"]) for p in plan], [(p["kind"], p["category"]) for p in plan3])
 
     # slots never double-book

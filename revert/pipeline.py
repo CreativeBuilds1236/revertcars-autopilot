@@ -131,6 +131,10 @@ def draft_run(cfg, state: State, tg: Telegram | None, n_news: int | None = None,
     today = datetime.now(tz(cfg)).date().isoformat()
     fallback_news = False
     if n_news is None and n_throwback is None:
+        if state.data.get("last_plan_day") == today:
+            log.info("Today's drafts were already made — skipping (this run was a duplicate trigger).")
+            return []
+        state.data["last_plan_day"] = today
         n_news = d.get("news_per_day", 1)
         n_throwback = 0
         rotation = d.get("rotation", ["uae_wild", "throwback", "culture"])

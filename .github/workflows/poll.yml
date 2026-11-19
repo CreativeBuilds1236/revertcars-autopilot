@@ -1,9 +1,10 @@
 name: Approvals & posting
 
-# Every 15 minutes: read your Telegram taps, then publish anything that's due.
+# Reads your Telegram taps, then publishes anything that's due.
+# Main trigger: cron-job.org every 10 minutes (GitHub's own timer below is only a backup — it can run hours late).
 on:
   schedule:
-    - cron: "*/15 * * * *"
+    - cron: "*/30 * * * *"
   workflow_dispatch:
 
 concurrency:

@@ -71,8 +71,36 @@ github.com → your photo → **Settings → Developer settings → Personal acc
 Generate new token**. Under *Repository access*, choose **Only select repositories → revertcars-autopilot**.
 Under *Permissions*, set **Secrets → Read and write**. Copy the token and save it as the `GH_PAT` secret.
 
-### 7. Go
-**Actions → Make drafts → Run workflow** (put 1 in *throwback* to also get a throwback).
+### 7. Make it run on time (cron-job.org, free)
+GitHub's own timer is unreliable. On a new repo it can run hours late, which would leave your ✅ taps waiting.
+So a free timer service, cron-job.org, nudges GitHub at the right moments instead.
+
+**a) A token that can only start this repo's jobs.** github.com → your photo → Settings → Developer settings →
+Personal access tokens → Fine-grained tokens → Generate new token. Name: `cron-job`. Repository access:
+**Only select repositories → revertcars-autopilot**. Permissions → **Actions: Read and write** (nothing else).
+Copy it.
+
+**b) cron-job.org.** Sign up free → Settings → set the time zone to **Asia/Dubai**. Then **Create cronjob** twice:
+
+| | Job 1: "Revert – taps & posting" | Job 2: "Revert – daily drafts" |
+|---|---|---|
+| URL | `https://api.github.com/repos/CreativeBuilds1236/revertcars-autopilot/actions/workflows/poll.yml/dispatches` | `https://api.github.com/repos/CreativeBuilds1236/revertcars-autopilot/actions/workflows/draft.yml/dispatches` |
+| Schedule | Every **10 minutes** (custom: hours 8–1 if you'd rather it sleeps at night) | Every day at **10:15** |
+
+For **both** jobs, open the **Advanced** tab:
+- Request method: **POST**
+- Headers (add three):
+  `Authorization` = `Bearer YOUR_CRON_JOB_TOKEN`
+  `Accept` = `application/vnd.github+json`
+  `X-GitHub-Api-Version` = `2022-11-28`
+- Request body: `{"ref":"main"}`
+
+Save, then use **Test run** on Job 1. A response of **204** means it worked, and you'll see a new run appear in
+your repo's Actions tab. GitHub's own timer stays switched on as a backup, and the daily drafts can never run twice
+in one day.
+
+### 8. Go
+**Actions → Make drafts → Run workflow**, leaving the boxes blank, to get today's 2 drafts now.
 Drafts land in Telegram within a few minutes. From then on, everything runs by itself.
 
 ---
@@ -115,7 +143,7 @@ TV lower-third, VHS tape, polaroid) and 7 colour themes, plus several carousel s
 is picked so it doesn't repeat the last few. The Telegram draft shows which look was used, and **🔄 Rewrite**
 always gives a different one.
 
-Taps are picked up every 15 minutes, because GitHub checks on a timer. During busy periods GitHub
+Taps are picked up within about 10 minutes (cron-job.org triggers a check every 10 minutes). During busy periods GitHub
 sometimes runs a little late, so a post can go out 5–20 minutes after its slot.
 
 ## How it avoids misinformation

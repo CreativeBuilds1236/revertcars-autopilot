@@ -2,15 +2,17 @@ name: Make drafts
 
 on:
   schedule:
-    - cron: "17 6 * * *"    # once a day, 10:17 UAE — 2 drafts (1 news + 1 rotation)
+    # Backup only: GitHub's own timer can run hours late, so the main trigger is cron-job.org
+    # (see README "Make it run on time"). The daily plan only ever runs once a day, whoever triggers it.
+    - cron: "17 8 * * *"    # 12:17 UAE
   workflow_dispatch:
     inputs:
       news:
-        description: "Number of news drafts"
-        default: "1"
+        description: "Number of news drafts (leave both blank for the normal daily plan)"
+        default: ""
       throwback:
         description: "Number of throwback drafts"
-        default: "0"
+        default: ""
 
 concurrency:
   group: revert-data
@@ -39,8 +41,7 @@ jobs:
       - run: bash scripts/data_branch.sh pull
       - name: Draft
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            python -m revert draft --news "${{ inputs.news }}" --throwback "${{ inputs.throwback }}"
-          else
-            python -m revert draft
-          fi
+          ARGS=""
+          if [ -n "${{ inputs.news }}" ]; then ARGS="$ARGS --news ${{ inputs.news }}"; fi
+          if [ -n "${{ inputs.throwback }}" ]; then ARGS="$ARGS --throwback ${{ inputs.throwback }}"; fi
+          python -m revert draft $ARGS
