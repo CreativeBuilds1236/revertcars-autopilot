@@ -17,6 +17,15 @@ except Exception:  # optional
     trafilatura = None
 
 
+# Pictures that aren't real photographs: speculative renderings, illustrations, AI-made or edited images.
+NOT_A_PHOTO = re.compile(r"render|illustrat|ai[- ]?generated|generated (by|with) ai|midjourney|dall-?e|"
+                         r"stable diffusion|firefly|artist'?s? (impression|rendering)|imagined|speculative|"
+                         r"photoshop|mock-?up|concept art|digital art|cgi by", re.I)
+# Credit lines that mean the article's lead image is a rendering/illustration
+RENDER_CREDIT = re.compile(r"(illustrations?|renderings?|renders?|images? generated)\s*(by|:|courtesy)|"
+                           r"ai[- ]generated (image|illustration|picture)", re.I)
+
+
 def resolve_google_news(url: str) -> str | None:
     """Google News RSS links are redirect tokens; turn them into the publisher's real URL."""
     if "news.google.com" not in url:
@@ -55,12 +64,20 @@ def fetch_article(url: str) -> dict:
     out["title"] = clean_text((soup.find("meta", property="og:title") or {}).get("content", "")) if soup else ""
 
     imgs = []
-    for prop in ("og:image", "og:image:secure_url", "twitter:image"):
-        m = soup.find("meta", attrs={"property": prop}) or soup.find("meta", attrs={"name": prop})
-        if m and m.get("content"):
-            imgs.append(urljoin(url, m["content"]))
+    page_has_renders = bool(RENDER_CREDIT.search(out["text"]))
+    if not page_has_renders:          # the lead image may be the rendering — only trust it on clean pages
+        for prop in ("og:image", "og:image:secure_url", "twitter:image"):
+            m = soup.find("meta", attrs={"property": prop}) or soup.find("meta", attrs={"name": prop})
+            if m and m.get("content") and not NOT_A_PHOTO.search(m["content"]):
+                imgs.append(urljoin(url, m["content"]))
     scope = soup.find("article") or soup.find("main") or soup
     for im in scope.find_all("img"):
+        fig = im.find_parent("figure")
+        caption = " ".join(filter(None, [im.get("alt"), im.get("title"), " ".join(im.get("class") or []),
+                                         fig.get_text(" ") if fig else ""]))
+        if NOT_A_PHOTO.search(caption) or (page_has_renders and not caption.strip()):
+            out["skipped_images"] = out.get("skipped_images", 0) + 1
+            continue
         cand = None
         srcset = im.get("srcset") or im.get("data-srcset")
         if srcset:
@@ -68,7 +85,7 @@ def fetch_article(url: str) -> dict:
             parts = [(p[0], int(re.sub(r"\D", "", p[1]) or 0) if len(p) > 1 else 0) for p in parts]
             cand = max(parts, key=lambda x: x[1])[0] if parts else None
         cand = cand or im.get("data-src") or im.get("src")
-        if cand and not cand.startswith("data:"):
+        if cand and not cand.startswith("data:") and not NOT_A_PHOTO.search(cand):
             imgs.append(urljoin(url, cand))
     seen, uniq = set(), []
     for u in imgs:

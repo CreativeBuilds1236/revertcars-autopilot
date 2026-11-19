@@ -165,4 +165,7 @@ brands: ["Nissan", "Toyota", "Lexus", "Ferrari", "Lamborghini", "Porsche", "Merc
 exclude_keywords: ["deal", "discount", "lease", "coupon", "best tires", "how to", "buying guide", "sponsored",
                    "giveaway", "insurance quote", "our picks", "ranked:", "vs.", "podcast", "quiz", "horoscope",
                    "obituary", "crash kills", "killed", "dies in", "lego", "toy", "toys", "video game", "gran turismo",
-                   "forza", "playstation", "xbox", "die-cast", "diecast", "hot wheels", "merch"]
+                   "forza", "playstation", "xbox", "die-cast", "diecast", "hot wheels", "merch",
+                   # speculative renderings / illustrations / AI images aren't real photos — skip those stories
+                   "render", "rendered", "rendering", "renderings", "renders", "imagined", "illustration",
+                   "illustrated", "ai-generated", "what if", "we imagine", "digital artist"]

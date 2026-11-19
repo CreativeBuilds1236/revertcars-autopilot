@@ -266,6 +266,9 @@ def normalise(out: dict, tool: dict) -> dict:
     if "slides" in out:
         out["slides"] = [s for s in out["slides"] if isinstance(s, dict) and s.get("title")
                          and isinstance(s.get("points"), list)]
+    if "specs" in out:
+        out["specs"] = [{"label": str(s.get("label", "")).strip(), "value": str(s.get("value", "")).strip()}
+                        for s in out["specs"] if isinstance(s, dict) and s.get("label") and s.get("value")]
     if "hashtags" in out:
         out["hashtags"] = [h for h in out["hashtags"] if isinstance(h, str) and h.strip()]
     return out

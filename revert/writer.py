@@ -34,7 +34,8 @@ FACT RULES (these matter more than anything else)
 6. List every factual claim you made in `claims`, each with a short exact quote from the source that
    supports it.
 7. Set skip=true if the source is too thin to write an accurate post, or if the piece is an advert,
-   deal, buying guide, listicle, opinion column, or a story about a fatal crash.
+   deal, buying guide, listicle, opinion column, a story about a fatal crash, or mainly about speculative
+   renderings, illustrations or AI-generated images of a car (we only post real photos).
 
 CAPTION STRUCTURE — NEWS
   2-4 short sentences: what happened, the key facts/specs, one witty commentary line.
@@ -69,12 +70,20 @@ EXAMPLE THROWBACK CAPTION (tone reference only, don't reuse the facts)
 
   The R32 GT-R — the car that taught the world to fear Japan.
 
-IMAGE TEXT (printed on the post images, so keep it plain and factual)
-- headline: max 7 words, punchy, no clickbait, no emojis. For throwbacks, the car's name.
-- kicker: max 14 words, one line of context. For throwbacks, a short tagline.
+IMAGE TEXT (printed on the post images — clean, professional, information-rich, strictly factual)
+- headline: max 8 words, specific (name the make and model), no clickbait, no emojis, no jokes.
+  For throwbacks, the car's full name.
+- kicker: 12-24 words: the most useful facts in one or two plain sentences (what, key number, when/where).
+  No jokes here — the humour lives in the caption only.
 - year: throwbacks only, the key year (e.g. "1989"), else "".
-- slides: for carousels only, {n_slides} detail slides; each has a title (max 4 words) and 2-3 points
-  (max 11 words each), all facts from the source.
+- specs: up to 7 key facts as label/value pairs, ONLY ones stated in the source, e.g.
+  {{"label": "Engine", "value": "4.0L twin-turbo V8 hybrid"}}, {{"label": "Power", "value": "907 hp"}},
+  {{"label": "0-100 km/h", "value": "2.7 sec"}}, {{"label": "Price", "value": "AED 1.4 million"}},
+  {{"label": "On sale", "value": "Q1 2027"}}. Labels max 3 words, values max 6 words.
+  Empty list if the source has fewer than 3 hard facts.
+- slides: for carousels only, {n_slides} detail slides; each has a title (max 4 words) and 3-4 points.
+  Points are complete, specific facts of 10-18 words each — names, numbers, dates, places — never vague
+  filler like "looks amazing" or "a true icon". Don't repeat the specs.
 - stat: one headline number from the source with a short label (e.g. value "1,000 HP", label
   "combined output"), or empty strings if there's no standout number.
 - hashtags: {n_tags} specific, relevant hashtags (model, brand, scene). Don't include #RevertMedia.
@@ -97,6 +106,10 @@ POST_TOOL = {
             "year": {"type": "string"},
             "stat": {"type": "object", "properties": {"value": {"type": "string"}, "label": {"type": "string"}},
                      "required": ["value", "label"]},
+            "specs": {"type": "array", "items": {
+                "type": "object",
+                "properties": {"label": {"type": "string"}, "value": {"type": "string"}},
+                "required": ["label", "value"]}},
             "slides": {"type": "array", "items": {
                 "type": "object",
                 "properties": {"title": {"type": "string"}, "points": {"type": "array", "items": {"type": "string"}}},
@@ -109,7 +122,7 @@ POST_TOOL = {
                 "required": ["claim", "source_quote"]}},
         },
         "required": ["skip", "category", "is_rumour", "headline", "kicker", "caption", "hashtags", "claims",
-                     "slides", "stat", "year"],
+                     "slides", "stat", "year", "specs"],
     },
 }
 
@@ -161,6 +174,9 @@ def post_text_for_check(post: dict) -> str:
     parts = [f"Headline: {post['headline']}", f"Kicker: {post['kicker']}"]
     if post.get("stat", {}).get("value"):
         parts.append(f"Stat: {post['stat']['value']} — {post['stat']['label']}")
+    for s in post.get("specs", []) or []:
+        if isinstance(s, dict) and s.get("value"):
+            parts.append(f"Spec: {s.get('label')}: {s.get('value')}")
     for s in post.get("slides", []):
         parts.append(f"Slide '{s['title']}': " + " | ".join(s["points"]))
     parts.append("Caption:\n" + post["caption"])
