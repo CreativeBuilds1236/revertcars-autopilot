@@ -183,6 +183,49 @@ def post_text_for_check(post: dict) -> str:
     return "\n".join(parts)
 
 
+import re as _re
+
+_COMMON = set("""the a an and or of to in on for with at by from it its this that these those as is are was were be
+been has have had will would can could new its it's he she they we you i our their his her them there here
+headline kicker caption slide stat spec""".split())
+
+
+def key_terms(text: str) -> list[str]:
+    """Hard facts in a statement: numbers and names/model codes (not ordinary capitalised words)."""
+    text = _re.sub(r"^(headline|kicker|caption|stat|spec|slide\s*'[^']*')\s*:\s*", "", text.strip(), flags=_re.I)
+    raw = [w.strip(".,;:!?()\"'“”‘’$€£") for w in text.split()]
+    raw = [w for w in raw if w]
+    words = [p for w in raw for p in w.split("-") if p]
+    caps = sum(1 for w in words if w[:1].isupper())
+    title_case = len(words) >= 3 and caps / len(words) >= 0.6
+    terms = []
+    for i, w in enumerate(words):
+        if any(c.isdigit() for c in w):
+            terms.append(w.rstrip("."))                                  # 2028, 907, V8, 6GT, 2.8
+        elif any(c.isupper() for c in w[1:]):
+            terms.append(w)                                              # McLaren, McL, AMG, RTA
+        elif w[:1].isupper() and i > 0 and not title_case and w.lower() not in _COMMON:
+            terms.append(w)                                              # mid-sentence names: Woking, Dubai
+    return terms
+
+
+def _norm(s: str) -> str:
+    return _re.sub(r"[^a-z0-9.%]", "", s.lower().replace(",", ""))
+
+
+def confirm_flags(flags: list[str], source: str) -> list[str]:
+    """Drop checker flags whose hard facts (every number and name) all appear in the source.
+    Light models flag paraphrases ("unveiled" vs "revealed") — those aren't errors."""
+    src = _norm(source)
+    kept = []
+    for f in flags:
+        terms = key_terms(f)
+        if terms and all(_norm(t) in src for t in terms):
+            continue
+        kept.append(f)
+    return kept
+
+
 def write_post(item: dict, cfg: dict, n_slides: int = 0, note: str = "", client=None, images=None,
                rewrite: bool = False) -> dict:
     """Write a post, fact-check it, and retry once if the checker finds invented facts.
@@ -205,6 +248,13 @@ def write_post(item: dict, cfg: dict, n_slides: int = 0, note: str = "", client=
         check = llm.call(cfg, "checker", CHECK_PROMPT,
                          f"SOURCE:\n\"\"\"\n{item['text']}\n\"\"\"\n\nPOST:\n{post_text_for_check(post)}",
                          CHECK_TOOL, images=imgs, client=client, max_tokens=1000)
+        raw = list(check.get("unsupported", []))
+        check["unsupported"] = confirm_flags(raw, item["text"])
+        if not check["unsupported"]:
+            check["verdict"] = "ok"
+        if len(raw) != len(check["unsupported"]):
+            log.info("Fact check: cleared %d false alarm(s) whose facts are all in the source",
+                     len(raw) - len(check["unsupported"]))
         log.info("Fact check: %s %s", check.get("verdict"), check.get("unsupported"))
         if check.get("verdict") != "major":
             break

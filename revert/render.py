@@ -482,10 +482,12 @@ def choose_style(kind: str, has_photo: bool, recent: list[dict], rng: random.Ran
     options = [n for n, t in TEMPLATES.items() if kind in t["kinds"] and (has_photo or not t["photo"])]
     if not options:
         options = ["fade"]
-    fresh = [o for o in options if o not in recent_t] or options
+    last_t = recent_t[-1] if recent_t else None
+    fresh = ([o for o in options if o not in recent_t] or [o for o in options if o != last_t] or options)
     template = rng.choice(fresh)
     themes = TEMPLATES[template]["themes"]
-    fresh_th = [t for t in themes if t not in recent_th] or themes
+    last_th = recent_th[-1] if recent_th else None
+    fresh_th = ([t for t in themes if t not in recent_th] or [t for t in themes if t != last_th] or themes)
     return {"template": template, "theme": rng.choice(fresh_th), "detail": "panel", "stat": "clean"}
 
 
