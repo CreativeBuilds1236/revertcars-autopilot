@@ -262,6 +262,7 @@ def main():
     article.resolve_google_news = lambda u: "https://www.thenationalnews.com/uae/plate-aa7" if "PLATE" in u else None
     cfg = util.load_config()
     cfg["ai"]["provider"] = "anthropic"          # this rehearsal uses the fake Claude; tests/test_gemini.py covers Gemini
+    cfg["instagram"]["mode"] = "auto"            # auto-posting path first; manual mode is tested at the end
     cfg["drafting"]["carousel_probability"] = 1.0
     cfg["google_news"]["queries"] = []
     cfg["google_news"]["uae_wild_queries"] = ['Dubai number plate auction record when:7d']
@@ -361,6 +362,24 @@ def main():
     assert s3.data["rotation_index"] == 2
     assert pipeline.draft_run(cfg, s3, FakeTG(), client=ai) == []          # 2nd trigger same day: no duplicates
     print("Daily plan OK:", [(p["kind"], p["category"]) for p in plan], [(p["kind"], p["category"]) for p in plan3])
+
+    # ── manual posting mode: at the slot, the bot hands the post over; "I posted it" closes it ──
+    cfg["instagram"]["mode"] = "manual"
+    tgm, n_pub = FakeTG(), len(ig.published)
+    dm = next(d for d in state.drafts.values() if d.get("status") == "pending")
+    tap(tgm, "a", dm["id"], 900)
+    pipeline.poll_run(cfg, state, tgm, listen=0, client=ai, ig=ig)
+    assert dm["status"] == "approved" and "ready to post at" in tgm.sent[-1][1]["text"]
+    dm["scheduled_for"] = (util.now_utc() - timedelta(minutes=1)).isoformat()
+    pipeline.publish_due(cfg, state, tgm, ig)
+    assert dm["status"] == "ready" and len(ig.published) == n_pub                 # nothing auto-posted
+    assert any(dm["caption"].split("\n")[0][:30] in t for t in tgm.texts())       # caption sent to copy
+    assert any(m in ("sendMediaGroup", "sendPhoto") for m, _ in tgm.sent)
+    tap(tgm, "p", dm["id"], 901)
+    pipeline.poll_run(cfg, state, tgm, listen=0, client=ai, ig=ig)
+    assert dm["status"] == "posted", dm["status"]
+    print("Manual posting OK: draft", dm["id"])
+    cfg["instagram"]["mode"] = "auto"
 
     # slots never double-book
     a = pipeline.next_free_slot(cfg, state)

@@ -41,6 +41,9 @@ def cmd_poll(a, cfg):
 
 
 def cmd_refresh(a, cfg):
+    if cfg.get("instagram", {}).get("mode", "manual") != "auto" or not env("IG_ACCESS_TOKEN"):
+        log.info("Manual posting mode / no Instagram token — nothing to renew.")
+        return
     tg = Telegram() if env("TELEGRAM_BOT_TOKEN") and env("TELEGRAM_CHAT_ID") else None
     try:
         res = Instagram(api_version=cfg["instagram"]["api_version"]).refresh_token()
@@ -111,7 +114,11 @@ def cmd_setup_check(a, cfg):
                 line(False, f"AI {role} problem: {str(ex)[:200]}")
 
     # Instagram
-    if not env("IG_ACCESS_TOKEN"):
+    manual = cfg.get("instagram", {}).get("mode", "manual") != "auto"
+    if manual:
+        report.append("📲 Manual posting mode: the bot sends you finished posts to upload yourself "
+                      "(no Instagram connection needed). Switch to auto in config.yaml later.")
+    elif not env("IG_ACCESS_TOKEN"):
         line(False, "IG_ACCESS_TOKEN secret is missing")
     else:
         try:
@@ -121,12 +128,12 @@ def cmd_setup_check(a, cfg):
         except Exception as ex:
             line(False, f"Instagram token problem: {ex}")
 
-    if not env("GH_PAT"):
+    if not manual and not env("GH_PAT"):
         report.append("⚠️ GH_PAT not set — the Instagram token won't renew itself (README step 6)")
 
     # Image hosting (Instagram must be able to download the images)
     repo = os.environ.get("GITHUB_REPOSITORY")
-    if repo and not cfg["instagram"].get("media_base_url"):
+    if repo and not manual and not cfg["instagram"].get("media_base_url"):
         try:
             r = http().get(f"https://api.github.com/repos/{repo}",
                            headers={"Authorization": f"Bearer {env('GITHUB_TOKEN')}"}, timeout=20).json()

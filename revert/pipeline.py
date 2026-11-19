@@ -268,7 +268,37 @@ def fmt_local(cfg, iso: str) -> str:
 
 # ───────────────────────── publishing ─────────────────────────
 
+def manual_mode(cfg) -> bool:
+    return cfg.get("instagram", {}).get("mode", "manual") != "auto"
+
+
+def hand_over(draft: dict, cfg, state: State, tg: Telegram | None):
+    """Manual posting: send the finished slides + a copy-ready caption, wait for "I posted it"."""
+    draft.update(status="ready", handed_at=now_utc().isoformat(), updated=now_utc().isoformat())
+    state.put(draft)
+    if not tg:
+        return True
+    n = len(draft["images"])
+    photos = f"the {n} photos below (in order)" if n > 1 else "the photo below"
+    tg.send_text(f"🔔 <b>Time to post #{draft['id']}</b> — {html.escape(draft['headline'])}\n"
+                 f"1. Save {photos}\n"
+                 f"2. Long-press the caption message → Copy\n"
+                 f"3. Post on Instagram {'as a carousel ' if n > 1 else ''}and paste the caption\n"
+                 f"4. Tap <b>✅ I posted it</b>")
+    tg.send_album([MEDIA_DIR / name for name in draft["images"]])
+    tg.send_text(html.escape(draft["caption"]))         # plain message: long-press → Copy
+    msg = tg.send_text(f"#{draft['id']} ready to post", reply_markup={"inline_keyboard": [
+        [{"text": "✅ I posted it", "callback_data": f"p:{draft['id']}"},
+         {"text": "❌ Skip", "callback_data": f"s:{draft['id']}"}],
+        [{"text": "📱 Open Instagram", "url": "https://www.instagram.com/"}]]})
+    draft["tg_ready_id"] = msg["message_id"]
+    tg.update_control(draft, "📲 <b>Sent to you to post</b> — see the messages below.")
+    return True
+
+
 def publish(draft: dict, cfg, state: State, tg: Telegram | None, ig: Instagram | None = None):
+    if manual_mode(cfg):
+        return hand_over(draft, cfg, state, tg)
     ig = ig or Instagram(api_version=cfg["instagram"].get("api_version", "v26.0"))
     storage.sync(state, f"pre-publish #{draft['id']}")     # make sure the images are online
     urls = [storage.media_url(cfg, n) for n in draft["images"]]
@@ -344,10 +374,24 @@ def handle_update(u: dict, cfg, state: State, tg: Telegram, client=None, ig=None
             d.update(status="approved", scheduled_for=slot.isoformat(), updated=now_utc().isoformat())
             state.put(d)
             tg.answer(cq["id"], "Approved")
-            tg.update_control(d, f"✅ <b>Approved</b> — goes live {fmt_local(cfg, d['scheduled_for'])}"
-                                 f" (UAE)\nTap 🚀 to post now instead, or ❌ to cancel.", keep_buttons=True)
+            when = fmt_local(cfg, d["scheduled_for"])
+            what = (f"I'll send it to you ready to post at {when}" if manual_mode(cfg)
+                    else f"goes live {when}")
+            tg.update_control(d, f"✅ <b>Approved</b> — {what} (UAE)\nTap 🚀 to do it now instead, "
+                                 f"or ❌ to cancel.", keep_buttons=True)
+        elif action == "p":
+            d.update(status="posted", posted_at=now_utc().isoformat(), updated=now_utc().isoformat())
+            state.put(d)
+            tg.answer(cq["id"], "Nice one!")
+            tg.update_control(d, "✅ <b>Posted</b> (by you)")
+            if d.get("tg_ready_id"):
+                try:
+                    tg.call("editMessageText", chat_id=tg.chat_id, message_id=d["tg_ready_id"],
+                            text=f"#{d['id']} ✅ posted", reply_markup={"inline_keyboard": []})
+                except Exception:
+                    pass
         elif action == "n":
-            tg.answer(cq["id"], "Posting now…")
+            tg.answer(cq["id"], "On it…")
             d.update(status="approved", scheduled_for=now_utc().isoformat())
             tg.update_control(d, "⏳ Posting…")
             publish(d, cfg, state, tg, ig)
@@ -405,7 +449,10 @@ def handle_update(u: dict, cfg, state: State, tg: Telegram, client=None, ig=None
     elif cmd == "/status":
         q = sorted(state.by_status("approved"), key=lambda x: x["scheduled_for"])
         p = state.by_status("pending")
-        lines = [f"<b>Queue</b> ({len(q)} approved, {len(p)} waiting for you)"]
+        r = state.by_status("ready")
+        lines = [f"<b>Queue</b> ({len(q)} approved, {len(p)} drafts to review"
+                 + (f", {len(r)} ready for you to post" if r else "") + ")"]
+        lines += [f"• 📲 #{x['id']} {html.escape(x['headline'])} — waiting for you to post" for x in r]
         lines += [f"• {fmt_local(cfg, x['scheduled_for'])} — #{x['id']} {html.escape(x['headline'])}" for x in q]
         tg.send_text("\n".join(lines))
     elif cmd == "/draft":

@@ -48,6 +48,12 @@ Repo → **Settings → Secrets and variables → Actions → New repository sec
 | `TELEGRAM_CHAT_ID` | from step 5 |
 | `GH_PAT` | from step 6 (lets the Instagram token renew itself) |
 
+
+> **Manual posting (the default):** you can skip steps 4 and 6 for now. When a post is due, the bot sends
+> you the finished slides plus the caption to copy, you upload it yourself (about 30 seconds) and tap
+> **✅ I posted it**. To make it post by itself later, do steps 4 and 6 (they need a Facebook account,
+> since Meta's developer site requires one) and change `mode: "manual"` to `mode: "auto"` under `instagram:` in `config.yaml`.
+
 ### 4. Connect Instagram (the fiddly bit; Meta's screens may be labelled slightly differently)
 1. Go to **developers.facebook.com** → log in with Facebook → **My Apps → Create App**.
 2. Choose the use case **"Manage messaging & content on Instagram"** (or "Other" → app type **Business**).

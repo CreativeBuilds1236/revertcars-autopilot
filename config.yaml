@@ -48,6 +48,9 @@ ai:
   british_spelling: true
 
 instagram:
+  # "manual" → at posting time the bot sends you the finished slides + caption to upload yourself.
+  # "auto"   → posts by itself. Needs the IG_ACCESS_TOKEN secret (README step 4, needs a Facebook account).
+  mode: "manual"
   api_version: "v26.0"
   # Where Instagram downloads the images from. Leave blank to use this GitHub repo's "data" branch.
   media_base_url: ""
