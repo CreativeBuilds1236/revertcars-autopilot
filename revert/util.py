@@ -22,7 +22,9 @@ if not log.handlers:
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/130.0 Safari/537.36")
-BOT_UA = "RevertMediaBot/1.0 (Instagram car news page; https://github.com)"
+# Wikimedia blocks look-alike browser user agents from servers; it wants an honest bot name with a contact link
+BOT_UA = ("RevertMediaBot/1.1 (Instagram car news page; https://github.com/"
+          + (os.environ.get("GITHUB_REPOSITORY") or "CreativeBuilds1236/revertcars-autopilot") + ")")
 
 
 def load_config() -> dict:

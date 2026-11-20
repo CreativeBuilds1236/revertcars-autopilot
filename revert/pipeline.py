@@ -57,6 +57,9 @@ def make_draft(item: dict, cfg, state: State, client=None, note: str = "", photo
         photos = list(photos) + article.download_images(item.get("image_urls", []), WORK, f"d{did}a",
                                                         max_n=max_slides - len(photos), min_w=800)
     carousel = len(photos) >= 2 and random.random() < d.get("carousel_probability", 0.55)
+    if not photos:
+        log.info("No usable photos for '%s' — skipped (posts always need a real photo)", item["title"])
+        return None
     if item["kind"] == "throwback" and len(photos) >= 2:
         carousel = carousel or random.random() < 0.5
     # daily carousel quota: the first drafts of the day are carousels until the minimum is reached

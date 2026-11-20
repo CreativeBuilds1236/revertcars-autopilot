@@ -9,7 +9,7 @@ from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 from PIL import Image
 
-from .util import clean_text, http, log
+from .util import BOT_UA, clean_text, http, log
 
 try:
     import trafilatura
@@ -112,12 +112,14 @@ def download_images(urls: list[str], dest: Path, prefix: str, max_n: int = 5,
         if len(saved) >= max_n:
             break
         try:
-            r = http().get(u, timeout=25)
+            wm = "wikimedia.org" in u or "wikipedia.org" in u
+            r = http().get(u, timeout=25, headers={"User-Agent": BOT_UA} if wm else None)
             r.raise_for_status()
             im = Image.open(io.BytesIO(r.content))
             im.load()
             im = im.convert("RGB")
-        except Exception:
+        except Exception as ex:
+            log.info("Photo download failed (%s): %s", str(ex)[:80], u[:120])
             continue
         w, h = im.size
         if w < min_w or h < min_h or w / h > 3 or h / w > 2:

@@ -32,30 +32,56 @@ def wiki_text(title: str, max_chars: int = 7000) -> dict:
     return {"title": page["title"], "text": text[:max_chars], "url": page.get("fullurl", "")}
 
 
-def wiki_images(title: str, max_n: int = 6) -> list[str]:
-    try:
-        data = _get(f"{WIKI}/api/rest_v1/page/media-list/{quote(title.replace(' ', '_'))}")
-    except Exception as ex:
-        log.info("media-list failed for %s: %s", title, ex)
-        return []
+SKIP_NAMES = (".svg", "logo", "map", "diagram", "badge", "emblem", "flag", "icon", "chart", "commons-",
+              "wiki", "question", "edit-", "padlock", "symbol")
+
+
+def _api_images(title: str, max_n: int) -> list[str]:
+    """Photos on the article, via the standard MediaWiki API (1280px thumbnails — a size Wikimedia always serves)."""
+    data = _get(f"{WIKI}/w/api.php", action="query", generator="images", titles=title, gimlimit=50,
+                prop="imageinfo", iiprop="url|size|mime", iiurlwidth=1280, format="json", redirects=1)
+    pages = sorted((data.get("query") or {}).get("pages", {}).values(), key=lambda p: p.get("index", 0))
+    urls = []
+    for p in pages:
+        name = p.get("title", "").lower()
+        info = (p.get("imageinfo") or [{}])[0]
+        if info.get("mime") not in ("image/jpeg", "image/png", "image/webp"):
+            continue
+        if any(x in name for x in SKIP_NAMES) or info.get("width", 0) < 900:
+            continue
+        urls.append(info.get("thumburl") or info.get("url"))
+        if len(urls) >= max_n:
+            break
+    return [u for u in urls if u]
+
+
+def _rest_images(title: str, max_n: int) -> list[str]:
+    data = _get(f"{WIKI}/api/rest_v1/page/media-list/{quote(title.replace(' ', '_'))}")
     urls = []
     for item in data.get("items", []):
-        if item.get("type") != "image":
-            continue
         name = item.get("title", "").lower()
-        if any(x in name for x in (".svg", "logo", "map", "diagram", "badge", "emblem", "flag", "icon", "chart")):
+        if item.get("type") != "image" or any(x in name for x in SKIP_NAMES):
             continue
         srcset = item.get("srcset") or []
-        if not srcset:
-            continue
-        src = srcset[-1]["src"]
-        src = "https:" + src if src.startswith("//") else src
-        # ask for a 1600px-wide thumbnail instead of the (sometimes huge) original
-        src = re.sub(r"/(\d+)px-", "/1600px-", src)
-        urls.append(src)
+        if srcset:
+            src = srcset[-1]["src"]
+            urls.append("https:" + src if src.startswith("//") else src)
         if len(urls) >= max_n:
             break
     return urls
+
+
+def wiki_images(title: str, max_n: int = 6) -> list[str]:
+    for fn in (_api_images, _rest_images):
+        try:
+            urls = fn(title, max_n)
+        except Exception as ex:
+            log.info("%s failed for %s: %s", fn.__name__, title, ex)
+            continue
+        if urls:
+            return urls
+    log.info("No usable Wikimedia photos for %s", title)
+    return []
 
 
 def on_this_day_car_event() -> dict | None:
@@ -102,6 +128,10 @@ def build_throwback(cfg, state) -> dict | None:
             continue
         if not info or len(info["text"]) < 800:
             continue
+        images = wiki_images(info["title"])
+        log.info("Throwback candidate %s: %d photo(s)", info["title"], len(images))
+        if not images:
+            continue                      # never make a throwback without a real photo
         return {
             "kind": "throwback",
             "title": info["title"],
@@ -109,7 +139,7 @@ def build_throwback(cfg, state) -> dict | None:
             "source_name": "Wikipedia",
             "text": info["text"],
             "angle": topic.get("angle", ""),
-            "image_urls": wiki_images(info["title"]),
+            "image_urls": images,
             "outlets": ["Wikipedia"],
         }
     return None
