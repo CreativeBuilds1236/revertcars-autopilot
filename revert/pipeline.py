@@ -178,7 +178,7 @@ def draft_run(cfg, state: State, tg: Telegram | None, n_news: int | None = None,
             if want <= 0:
                 return 0
             for c in pool:
-                if got >= want or attempts >= want * 4:
+                if got >= want or attempts >= max(want * 4, 8):
                     break
                 if id(c) in used:
                     continue
