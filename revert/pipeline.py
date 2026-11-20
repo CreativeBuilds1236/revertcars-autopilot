@@ -540,7 +540,12 @@ def poll_run(cfg, state: State, tg: Telegram, listen: int = 240, client=None, ig
     publish_due(cfg, state, tg, ig)
     deadline = time.time() + listen
     while True:
-        ups = tg.updates(state.data["tg_offset"], wait=wait_seconds(deadline))
+        try:
+            ups = tg.updates(state.data["tg_offset"], wait=wait_seconds(deadline))
+        except Exception as ex:          # Telegram hiccup (e.g. "Bad Gateway"): wait a moment and carry on
+            log.warning("Telegram unavailable (%s) — retrying shortly", ex)
+            time.sleep(min(15, max(0, deadline - time.time())))
+            ups = []
         for u in ups:
             state.data["tg_offset"] = u["update_id"] + 1
             state.dirty = True
