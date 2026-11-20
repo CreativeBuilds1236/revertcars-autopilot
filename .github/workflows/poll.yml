@@ -35,4 +35,4 @@ jobs:
       - run: pip install -r requirements.txt
       - run: bash scripts/data_branch.sh pull
       - name: Listen for taps and publish
-        run: python -m revert poll --listen 300
+        run: python -m revert poll --listen 420

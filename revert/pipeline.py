@@ -487,7 +487,9 @@ def handle_update(u: dict, cfg, state: State, tg: Telegram, client=None, ig=None
     is_cmd = text.startswith("/")
     if not is_cmd and (msg.get("photo") or msg.get("document") or URL_RE.search(text) or msg.get("media_group_id")):
         if submissions.add_to_inbox(state, msg):
-            tg.send_text("📥 Got it — I'll turn that into a draft in a moment.",
+            tg.send_text("📰 Reading that article — the draft will be here in a minute or two."
+                         if URL_RE.search(text) and not (msg.get("photo") or msg.get("document"))
+                         else "📥 Got it — I'll turn that into a draft in a moment.",
                          reply_to_message_id=msg["message_id"])
         return
     if not is_cmd and text:
