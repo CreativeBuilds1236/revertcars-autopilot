@@ -342,7 +342,7 @@ def hand_over(draft: dict, cfg, state: State, tg: Telegram | None):
 def publish(draft: dict, cfg, state: State, tg: Telegram | None, ig: Instagram | None = None):
     if manual_mode(cfg):
         return hand_over(draft, cfg, state, tg)
-    ig = ig or Instagram(api_version=cfg["instagram"].get("api_version", "v26.0"))
+    ig = ig or Instagram.from_cfg(cfg)
     storage.sync(state, f"pre-publish #{draft['id']}")     # make sure the images are online
     urls = [storage.media_url(cfg, n) for n in draft["images"]]
     try:

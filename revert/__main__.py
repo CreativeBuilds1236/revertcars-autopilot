@@ -48,9 +48,12 @@ def cmd_refresh(a, cfg):
     if cfg.get("instagram", {}).get("mode", "manual") != "auto" or not env("IG_ACCESS_TOKEN"):
         log.info("Manual posting mode / no Instagram token — nothing to renew.")
         return
+    if Instagram.from_cfg(cfg).never_expires:
+        log.info("This Instagram token (Unified login / system user) never expires — nothing to renew.")
+        return
     tg = Telegram() if env("TELEGRAM_BOT_TOKEN") and env("TELEGRAM_CHAT_ID") else None
     try:
-        res = Instagram(api_version=cfg["instagram"]["api_version"]).refresh_token()
+        res = Instagram.from_cfg(cfg).refresh_token()
     except Exception as ex:
         if tg:
             tg.send_text(f"❗ <b>Instagram token refresh failed</b>\n{html.escape(str(ex))[:400]}\n\n"
@@ -126,13 +129,14 @@ def cmd_setup_check(a, cfg):
         line(False, "IG_ACCESS_TOKEN secret is missing")
     else:
         try:
-            ig = Instagram(api_version=cfg["instagram"]["api_version"])
+            ig = Instagram.from_cfg(cfg)
             me = ig.me()
             line(True, f"Instagram connected: @{me.get('username')} ({me.get('account_type')}), user id {ig.uid}")
         except Exception as ex:
             line(False, f"Instagram token problem: {ex}")
 
-    if not manual and not env("GH_PAT"):
+    renewing_token = bool(env("IG_ACCESS_TOKEN")) and not Instagram.from_cfg(cfg).never_expires
+    if not manual and renewing_token and not env("GH_PAT"):
         report.append("⚠️ GH_PAT not set — the Instagram token won't renew itself (README step 6)")
 
     # Image hosting (Instagram must be able to download the images)

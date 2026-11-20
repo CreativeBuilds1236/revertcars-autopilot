@@ -45,34 +45,40 @@ Repo → **Settings → Secrets and variables → Actions → New repository sec
 | `TELEGRAM_BOT_TOKEN` | the token from BotFather |
 | `GEMINI_API_KEY` | **free**: aistudio.google.com → sign in with Google → **Get API key** → Create API key (no card needed) |
 | `IG_ACCESS_TOKEN` | from step 4 |
+| `IG_USER_ID` | from step 4 (your Instagram account's ID) |
 | `TELEGRAM_CHAT_ID` | from step 5 |
-| `GH_PAT` | from step 6 (lets the Instagram token renew itself) |
+| `GH_PAT` | only for older 60-day Instagram tokens (step 6) |
 
 
 > **Manual posting (the default):** you can skip steps 4 and 6 for now. When a post is due, the bot sends
 > you the finished slides plus the caption to copy, you upload it yourself (about 30 seconds) and tap
-> **✅ I posted it**. To make it post by itself later, do steps 4 and 6 (they need a Facebook account,
+> **✅ I posted it**. To make it post by itself later, do step 4 (they need a Facebook account,
 > since Meta's developer site requires one) and change `mode: "manual"` to `mode: "auto"` under `instagram:` in `config.yaml`.
 
 ### 4. Connect Instagram (the fiddly bit; Meta's screens may be labelled slightly differently)
-1. Go to **developers.facebook.com** → log in with Facebook → **My Apps → Create App**.
-2. Choose the use case **"Manage messaging & content on Instagram"** (or "Other" → app type **Business**).
-3. In the app dashboard, open **Instagram → API setup with Instagram business login**.
-4. Under **Generate access tokens**, click **Add account** and log in as **revertcars.media**.
-   - If it asks you to add a tester: go to **App roles → Roles → Add people → Instagram Tester**,
-     enter `revertcars.media`, then on Instagram open *Settings → Website permissions → Apps and websites →
-     Tester invites* and accept.
-5. Make sure the permissions include `instagram_business_basic` and `instagram_business_content_publish`.
-6. Click **Generate token**, copy it, and save it as the `IG_ACCESS_TOKEN` secret.
-   You don't need to submit the app for review, because you're only posting to your own account.
+New Meta apps use **"API setup with Unified login"**, which gives a token that **never expires**.
+1. **developers.facebook.com** → log in with Facebook → **My Apps → Create App** → use case
+   **"Manage messaging & content on Instagram"**, and connect it to a business portfolio.
+2. In the app: **Instagram → API setup with Unified login → Create new configuration**:
+   login variation *General*, access token **System-user access token**, expiration **Never**,
+   business asset **Instagram account**, permissions including `instagram_basic` and
+   `instagram_content_publish`.
+3. In **business.facebook.com → Settings → Accounts → Instagram accounts**, add **revertcars.media**
+   to the portfolio. The number shown there is the account ID: save it as the `IG_USER_ID` secret.
+4. Back in the app, generate the access token for that configuration, pick **revertcars.media**, and
+   save the token as the `IG_ACCESS_TOKEN` secret. No app review is needed for your own account.
+5. In `config.yaml`, change `mode: "manual"` to `mode: "auto"` under `instagram:`.
+
+*(Older apps with "Instagram business login" tokens still work: set `api_host: "graph.instagram.com"` and
+do step 6 so the 60-day token renews itself.)*
 
 ### 5. Run the setup check
 Repo → **Actions** tab → enable workflows if asked → **Setup check → Run workflow**.
 Open the run when it finishes. It tests every connection, and **it prints your Telegram chat ID**.
 Save that number as the `TELEGRAM_CHAT_ID` secret and run the check again. The result also arrives in Telegram.
 
-### 6. Let the Instagram token renew itself
-Instagram tokens expire after 60 days. To have them renewed automatically:
+### 6. Let the Instagram token renew itself (older tokens only)
+Skip this with a Unified-login token: it never expires. Older Instagram-login tokens expire after 60 days. To have them renewed automatically:
 github.com → your photo → **Settings → Developer settings → Personal access tokens → Fine-grained tokens →
 Generate new token**. Under *Repository access*, choose **Only select repositories → revertcars-autopilot**.
 Under *Permissions*, set **Secrets → Read and write**. Copy the token and save it as the `GH_PAT` secret.

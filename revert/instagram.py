@@ -1,11 +1,18 @@
-"""Publish to Instagram via the official Instagram API (Instagram Login, works with Creator accounts)."""
+"""Publish to Instagram via Meta's official Instagram API.
+
+Two kinds of access token work:
+  • "Unified login" (newer Meta apps): a never-expiring system-user token, used on graph.facebook.com.
+    Needs the IG_USER_ID secret (the Instagram account's ID) — the token can't look it up by itself.
+  • "Instagram login" (older apps): a 60-day Instagram user token, used on graph.instagram.com.
+"""
 from __future__ import annotations
 
 import time
 
 from .util import env, http, log
 
-BASE = "https://graph.instagram.com"
+FACEBOOK_HOST = "graph.facebook.com"
+INSTAGRAM_HOST = "graph.instagram.com"
 
 
 class InstagramError(RuntimeError):
@@ -13,13 +20,24 @@ class InstagramError(RuntimeError):
 
 
 class Instagram:
-    def __init__(self, token: str | None = None, api_version: str = "v26.0"):
+    def __init__(self, token: str | None = None, api_version: str = "v26.0", host: str = FACEBOOK_HOST):
         self.token = token or env("IG_ACCESS_TOKEN", required=True)
         self.v = api_version
+        self.host = host
+        self.base = f"https://{host}"
         self._uid = env("IG_USER_ID") or None
 
+    @classmethod
+    def from_cfg(cls, cfg) -> "Instagram":
+        ig = cfg.get("instagram", {})
+        return cls(api_version=ig.get("api_version", "v26.0"), host=ig.get("api_host", FACEBOOK_HOST))
+
+    @property
+    def never_expires(self) -> bool:
+        return self.host == FACEBOOK_HOST
+
     def _req(self, method, path, **params):
-        url = f"{BASE}/{self.v}/{path}" if path else BASE
+        url = f"{self.base}/{self.v}/{path}" if path else self.base
         params["access_token"] = self.token
         r = http().request(method, url, params=params if method == "GET" else None,
                            data=params if method == "POST" else None, timeout=60)
@@ -30,8 +48,27 @@ class Instagram:
         return body
 
     def me(self) -> dict:
-        b = self._req("GET", "me", fields="user_id,username,account_type")
-        self._uid = self._uid or str(b.get("user_id") or b.get("id"))
+        if self.host == INSTAGRAM_HOST:
+            b = self._req("GET", "me", fields="user_id,username,account_type")
+            self._uid = self._uid or str(b.get("user_id") or b.get("id"))
+            return b
+        if not self._uid:
+            # User tokens can find the account through a linked Page; system-user tokens can't.
+            try:
+                pages = self._req("GET", "me/accounts", fields="instagram_business_account{id,username}")
+                for p in pages.get("data", []):
+                    acct = p.get("instagram_business_account")
+                    if acct:
+                        self._uid = str(acct["id"])
+                        break
+            except InstagramError:
+                pass
+        if not self._uid:
+            raise InstagramError("Add the IG_USER_ID secret (your Instagram account's ID — shown in Meta Business "
+                                 "Settings → Accounts → Instagram accounts, or next to the account in the app's "
+                                 "API setup page)")
+        b = self._req("GET", self._uid, fields="id,username,name")
+        b.setdefault("account_type", "professional")
         return b
 
     @property
@@ -86,7 +123,9 @@ class Instagram:
         return self._req("GET", f"{self.uid}/content_publishing_limit", fields="quota_usage,config")
 
     def refresh_token(self) -> dict:
-        r = http().get(f"{BASE}/refresh_access_token",
+        if self.never_expires:
+            return {"never_expires": True}
+        r = http().get(f"{self.base}/refresh_access_token",
                        params={"grant_type": "ig_refresh_token", "access_token": self.token}, timeout=30)
         body = r.json()
         if "access_token" not in body:
