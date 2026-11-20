@@ -30,7 +30,14 @@ class Instagram:
     @classmethod
     def from_cfg(cls, cfg) -> "Instagram":
         ig = cfg.get("instagram", {})
-        return cls(api_version=ig.get("api_version", "v26.0"), host=ig.get("api_host", FACEBOOK_HOST))
+        token = env("IG_ACCESS_TOKEN", required=True)
+        host = ig.get("api_host", FACEBOOK_HOST)
+        # The token's prefix says where it belongs: "IG..." = Instagram-login token, "EAA..." = Facebook/system user
+        if token.startswith("IG"):
+            host = INSTAGRAM_HOST
+        elif token.startswith("EAA"):
+            host = FACEBOOK_HOST
+        return cls(token=token, api_version=ig.get("api_version", "v26.0"), host=host)
 
     @property
     def never_expires(self) -> bool:
