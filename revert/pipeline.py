@@ -352,8 +352,15 @@ def publish(draft: dict, cfg, state: State, tg: Telegram | None, ig: Instagram |
         state.put(draft)
         log.error("Publish failed for #%s: %s", draft["id"], ex)
         if tg:
-            tg.update_control(draft, f"❗ <b>Posting failed:</b> {html.escape(str(ex))[:300]}\n"
-                                     f"Tap Approve or Post now to retry.", keep_buttons=True)
+            # Don't lose the slot: hand the finished post over to be uploaded by hand instead.
+            tg.send_text(f"❗ <b>Auto-posting #{draft['id']} failed:</b> {html.escape(str(ex))[:300]}\n"
+                         "Sending it to you to post by hand instead.")
+            try:
+                hand_over(draft, cfg, state, tg)
+            except Exception as ex2:
+                log.error("Hand-over after failed publish also failed: %s", ex2)
+                tg.update_control(draft, f"❗ <b>Posting failed:</b> {html.escape(str(ex))[:300]}\n"
+                                         f"Tap Approve or Post now to retry.", keep_buttons=True)
         return False
     draft.update(status="posted", permalink=res.get("permalink", ""), ig_id=res["id"],
                  posted_at=now_utc().isoformat(), updated=now_utc().isoformat())
