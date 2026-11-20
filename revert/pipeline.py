@@ -53,6 +53,9 @@ def make_draft(item: dict, cfg, state: State, client=None, note: str = "", photo
         else:
             photos = article.download_images(item.get("image_urls", []), WORK, f"d{did}", max_n=max_slides,
                                              min_w=700 if item["kind"] == "throwback" else 800)
+    if item.get("fill_from_article") and len(photos) < max_slides:
+        photos = list(photos) + article.download_images(item.get("image_urls", []), WORK, f"d{did}a",
+                                                        max_n=max_slides - len(photos), min_w=800)
     carousel = len(photos) >= 2 and random.random() < d.get("carousel_probability", 0.55)
     if item["kind"] == "throwback" and len(photos) >= 2:
         carousel = carousel or random.random() < 0.5
@@ -85,7 +88,7 @@ def make_draft(item: dict, cfg, state: State, client=None, note: str = "", photo
         post["stat"] = {"value": "", "label": ""}
 
     recent = list(state.data.get("recent_styles", []))[-3:] + ([avoid_style] if avoid_style else [])
-    credit = f"Photo: {item['credit']}" if item["kind"] == "community" and item.get("credit") else (
+    credit = f"Photo: {item['credit']}" if item.get("credit") else (
         "Photo: community" if item["kind"] == "community" else "")
     community_carousel = item["kind"] == "community" and carousel
     prefix = f"d{did}_{int(time.time())}"

@@ -99,7 +99,7 @@ def build_item(entry: dict, cfg) -> tuple[dict | None, str]:
     trusted = set(cfg.get("google_news", {}).get("trusted_publishers", []))
     blocked = set(cfg.get("google_news", {}).get("blocked_publishers", []))
 
-    if other_urls and not entry["photos"] and not reddit_urls:
+    if other_urls and not reddit_urls:      # an article link (with or without your own photos)
         url = other_urls[0]
         d = domain_of(url)
         if any(d == b or d.endswith("." + b) for b in blocked):
@@ -107,11 +107,20 @@ def build_item(entry: dict, cfg) -> tuple[dict | None, str]:
         page = article.fetch_article(url)
         if len(page["text"]) < cfg["drafting"].get("min_source_chars", 500):
             return None, "I couldn't read enough of that article to fact-check it. Send the photos plus a few lines instead."
-        return {"kind": "news", "title": page["title"] or plain[:100] or url, "url": url,
+        item = {"kind": "news", "title": page["title"] or plain[:100] or url, "url": url,
                 "source_name": publisher_name(url, cfg), "text": page["text"][:9000],
                 "image_urls": page["images"], "outlets": [publisher_name(url, cfg)],
                 "untrusted": not any(d == t or d.endswith("." + t) for t in trusted),
-                "angle": plain}, ""
+                "angle": plain}
+        if entry["photos"]:
+            # your photos come first (the first one is the cover); the article's photos fill any gaps
+            item["tg_file_ids"] = entry["photos"]
+            item["fill_from_article"] = True
+            m = re.search(r"(?im)^\s*(?:credit|photo|📸)\s*[:\-]\s*(.+)$", text)
+            if m:
+                item["credit"] = m.group(1).strip()[:60]
+                item["angle"] = URL_RE.sub("", text.replace(m.group(0), "")).strip()
+        return item, ""
 
     rd = try_reddit(reddit_urls[0]) if reddit_urls else {}
     sub = rd.get("sub") or (re.search(r"/r/([A-Za-z0-9_]+)", reddit_urls[0]).group(1)

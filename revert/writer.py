@@ -275,7 +275,7 @@ def final_caption(post: dict, item: dict, cfg: dict) -> str:
     elif item["kind"] == "community":
         credit = f"📸 {item.get('credit') or 'Sent in by a follower'}"
     else:
-        credit = f"📰 Source: {item['source_name']}"
+        credit = f"📰 Source: {item['source_name']}" + (f" · 📸 {item['credit']}" if item.get("credit") else "")
     fixed = cfg["page"].get("fixed_hashtags", [])
     tags = []
     for t in fixed + [("#" + h.lstrip("#").replace(" ", "")) for h in post.get("hashtags", [])]:
