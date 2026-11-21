@@ -132,6 +132,19 @@ def cmd_setup_check(a, cfg):
             ig = Instagram.from_cfg(cfg)
             me = ig.me()
             line(True, f"Instagram connected: @{me.get('username')} ({me.get('account_type')}), user id {ig.uid}")
+            # Prove posting works: upload one existing slide as a draft container — never published
+            # (unpublished containers expire by themselves within 24 hours).
+            repo = os.environ.get("GITHUB_REPOSITORY")
+            files = http().get(f"https://api.github.com/repos/{repo}/contents/media", params={"ref": "data"},
+                               headers={"Authorization": f"Bearer {env('GITHUB_TOKEN')}"}, timeout=20).json()
+            jpgs = sorted(f["name"] for f in files if isinstance(f, dict) and f.get("name", "").endswith(".jpg"))
+            if jpgs:
+                from . import storage
+                try:
+                    ig._container(retries=1, image_url=storage.media_url(cfg, jpgs[-1]), caption="test")
+                    line(True, "Instagram posting permission works (test upload accepted — nothing was published)")
+                except Exception as ex:
+                    line(False, f"Instagram refused a test upload: {ex}")
         except Exception as ex:
             line(False, f"Instagram token problem: {ex}")
 
